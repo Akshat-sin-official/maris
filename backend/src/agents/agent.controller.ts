@@ -1,0 +1,109 @@
+import { Response, NextFunction } from 'express';
+import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { ForbiddenError, ValidationError } from '../common/errors';
+import { AgentContext } from './AgentContext';
+import {
+  PlannerAgent,
+  MarineDataAgent,
+  WeatherHazardAgent,
+  OceanIntelligenceAgent,
+  GeospatialAgent,
+  PFZAgent,
+  RiskReasoningAgent,
+  ExplanationAgent,
+} from './AgentRegistry';
+import { AuditLog } from '../audit/AuditLog.model';
+
+async function writeAuditLog(
+  eventType: 'USER_UPDATE',
+  actorEmail: string,
+  userId: string,
+  req: AuthenticatedRequest,
+  details?: Record<string, unknown>
+): Promise<void> {
+  try {
+    const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
+    const userAgent = req.headers['user-agent'] || 'unknown';
+    await AuditLog.create({
+      eventType,
+      userId,
+      actorEmail,
+      ipAddress,
+      userAgent,
+      details,
+    });
+  } catch (error) {
+    console.error('Failed to write audit log in agent controller:', error);
+  }
+}
+
+/**
+ * Handles agentic AI natural query parsing and analysis loop
+ */
+export async function queryAgenticAI(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userContext = req.user;
+    if (!userContext) {
+      throw new ForbiddenError('Access denied: authentication required');
+    }
+
+    const { query, location, language, context } = req.body;
+
+    if (!query || typeof query !== 'string' || query.trim() === '') {
+      throw new ValidationError('A non-empty query string is required.');
+    }
+
+    if (location) {
+      if (location.type !== 'Point' || !Array.isArray(location.coordinates) || location.coordinates.length !== 2) {
+        throw new ValidationError('Location must be a valid GeoJSON Point structure.');
+      }
+    }
+
+    // Initialize agent context
+    const agentContext: AgentContext = {
+      query,
+      location,
+      language: language || 'en',
+      context: context || {},
+      trace: [],
+      accumulatedData: {},
+    };
+
+    // Run agents in order
+    const agents = [
+      new PlannerAgent(),
+      new MarineDataAgent(),
+      new WeatherHazardAgent(),
+      new OceanIntelligenceAgent(),
+      new GeospatialAgent(),
+      new PFZAgent(),
+      new RiskReasoningAgent(),
+      new ExplanationAgent(),
+    ];
+
+    for (const agent of agents) {
+      await agent.run(agentContext);
+    }
+
+    const finalOutput = agentContext.accumulatedData.finalOutput;
+
+    // Log operational query run
+    await writeAuditLog('USER_UPDATE', userContext.email, userContext.userId, req, {
+      action: 'RUN_AGENTIC_AI_QUERY',
+      query,
+      intent: finalOutput.intent,
+      riskScore: finalOutput.risk?.score,
+    });
+
+    res.status(200).json({
+      status: 'success',
+      data: finalOutput,
+    });
+  } catch (error) {
+    next(error);
+  }
+}

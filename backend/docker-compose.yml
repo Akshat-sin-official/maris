@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  database:
+    image: mongo:6.0
+    container_name: maris-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - maris-db-data:/data/db
+    restart: always
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: maris-backend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - MONGO_URI=mongodb://database:27017/maris
+      - JWT_SECRET=super_secret_jwt_sign_key_change_in_production
+      - JWT_EXPIRES_IN=1d
+      - LOG_LEVEL=info
+    depends_on:
+      - database
+    restart: on-failure
+
+volumes:
+  maris-db-data:
