@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Bot, Send, Sparkles, AlertCircle, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Bot, Send, Sparkles, AlertCircle, RefreshCw, History, Trash2 } from 'lucide-react';
 import { MarisAiCard, type AiResponsePayload } from '../components/MarisAiCard';
 import { api } from '../services/api';
 
@@ -7,7 +7,30 @@ export const PortalMarisAiPage: React.FC = () => {
   const [query, setQuery] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [conversation, setConversation] = useState<AiResponsePayload[]>([]);
+
+  // 1. Persistent conversation history state stored in localStorage
+  const [conversation, setConversation] = useState<AiResponsePayload[]>(() => {
+    try {
+      const saved = localStorage.getItem('maris_ai_conversation_history');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  // 2. Automatically save conversation to localStorage on updates
+  useEffect(() => {
+    try {
+      localStorage.setItem('maris_ai_conversation_history', JSON.stringify(conversation));
+    } catch (e) {
+      console.warn('Failed to save AI conversation history:', e);
+    }
+  }, [conversation]);
+
+  const handleClearHistory = () => {
+    setConversation([]);
+    localStorage.removeItem('maris_ai_conversation_history');
+  };
 
   const handleQuerySubmit = async (userQueryText?: string) => {
     const qText = userQueryText || query;
@@ -98,7 +121,7 @@ export const PortalMarisAiPage: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
             <Sparkles size={18} color="#fa2edf" />
             <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              GOOGLE GEMINI 3.7 / FLASH LIVE AI AGENT ENGINE
+              GOOGLE GEMINI LIVE AI AGENT ENGINE
             </span>
           </div>
           <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.6rem', fontWeight: 500, margin: 0 }}>
@@ -109,7 +132,30 @@ export const PortalMarisAiPage: React.FC = () => {
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {conversation.length > 0 && (
+            <button
+              onClick={handleClearHistory}
+              title="Clear stored conversation history"
+              style={{
+                padding: '8px 14px',
+                borderRadius: '9999px',
+                border: '1px solid rgba(0,0,0,0.12)',
+                backgroundColor: '#ffffff',
+                color: '#dc2626',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <Trash2 size={14} />
+              <span>Clear History</span>
+            </button>
+          )}
+
           <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#15803d', backgroundColor: '#dcfce7', padding: '4px 12px', borderRadius: '9999px', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#22c55e' }} />
             LIVE GEMINI API CONNECTED
@@ -204,6 +250,53 @@ export const PortalMarisAiPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Previous Saved Queries History Panel */}
+      {conversation.length > 0 && (
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            border: '1px solid rgba(0,0,0,0.08)',
+            borderRadius: '14px',
+            padding: '14px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.72rem', fontWeight: 700, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            <History size={14} />
+            <span>SAVED AI QUERY HISTORY ({conversation.length}):</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', flex: 1 }}>
+            {conversation.map((item, idx) => (
+              <button
+                key={idx}
+                onClick={() => setQuery(item.query)}
+                style={{
+                  fontSize: '0.74rem',
+                  fontWeight: 500,
+                  padding: '4px 10px',
+                  borderRadius: '9999px',
+                  border: '1px solid rgba(0,0,0,0.1)',
+                  backgroundColor: '#f8fafc',
+                  color: '#1e293b',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: '240px',
+                }}
+                title={item.query}
+              >
+                "{item.query}"
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Error Alert Banner */}
       {errorMessage && (
         <div
@@ -247,9 +340,9 @@ export const PortalMarisAiPage: React.FC = () => {
           >
             <Bot size={40} color="rgba(0,0,0,0.2)" />
             <div>
-              <h3 style={{ margin: '0 0 4px', color: '#000', fontSize: '1.1rem' }}>No AI Queries Generated Yet</h3>
+              <h3 style={{ margin: '0 0 4px', color: '#000', fontSize: '1.1rem' }}>No Stored Query History</h3>
               <p style={{ margin: 0, fontSize: '0.85rem' }}>
-                Type a query above or click one of the sample presets to fetch live AI decision support from Google Gemini.
+                Ask any question above to execute live Gemini AI decision support. Your conversation history will automatically persist across page reloads.
               </p>
             </div>
           </div>
