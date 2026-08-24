@@ -28,5 +28,20 @@ services:
       - database
     restart: on-failure
 
+  minio:
+    image: minio/minio:RELEASE.2023-09-04T19-57-37Z
+    container_name: maris-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - maris-minio-data:/data
+    restart: always
+
 volumes:
   maris-db-data:
+  maris-minio-data:
