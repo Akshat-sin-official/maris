@@ -45,6 +45,8 @@ const envSchema = z.object({
   MAX_VIDEO_SIZE_MB: z.coerce.number().default(50),
   // xAI Grok API Key
   XAI_API_KEY: z.string().optional(),
+  // Google Gemini API Key (Free API via Google AI Studio)
+  GEMINI_API_KEY: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

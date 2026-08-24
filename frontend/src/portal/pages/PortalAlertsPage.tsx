@@ -6,41 +6,67 @@ import { api } from '../services/api';
 
 export const PortalAlertsPage: React.FC = () => {
   const { simulatedMode } = useAuth();
-  const [alertsList, setAlertsList] = useState<AlertItem[]>(INITIAL_ALERTS);
+  const [alertsList, setAlertsList] = useState<AlertItem[]>([]);
   const [severityFilter, setSeverityFilter] = useState<string>('ALL');
 
   useEffect(() => {
-    if (simulatedMode) {
-      setAlertsList(INITIAL_ALERTS);
-      return;
-    }
-
     const loadLiveAlerts = async () => {
       try {
-        const data = await api.get('/incidents');
-        const incidentsList = Array.isArray(data) ? data : data.data || [];
-        const mapped = incidentsList.map((inc: any) => ({
-          id: inc.id || inc._id,
-          title: inc.title || 'Marine Incident Alert',
-          type: 'CYCLONE',
-          severity: inc.priority === 'CRITICAL' ? 'CRITICAL' : 'HIGH',
-          region: inc.region || 'Gulf of Mannar Sector',
-          coordinates: inc.location?.coordinates ? [inc.location.coordinates[1], inc.location.coordinates[0]] : [12.52, 80.25],
-          timestamp: inc.createdAt || new Date().toISOString(),
-          validUntil: new Date(Date.now() + 86400000).toISOString(),
-          source: inc.source || 'MARIS Joint Control Room',
-          description: inc.description || '',
-          mitigationAdvice: 'Coordinate with coastal checkposts and active dispatch patrols.',
-          status: inc.status === 'CLOSED' ? 'RESOLVED' : 'ACTIVE',
-        }));
-        setAlertsList(mapped);
+        const [incRes, tipsRes] = await Promise.allSettled([
+          api.get('/incidents'),
+          api.get('/tips/control-room'),
+        ]);
+
+        const mappedAlerts: any[] = [];
+
+        if (incRes.status === 'fulfilled') {
+          const incidentsList = Array.isArray(incRes.value) ? incRes.value : incRes.value.data || [];
+          incidentsList.forEach((inc: any) => {
+            mappedAlerts.push({
+              id: inc.id || inc._id,
+              title: inc.title || 'Marine Incident Alert',
+              type: 'HIGH_WAVE',
+              severity: inc.priority === 'CRITICAL' ? 'CRITICAL' : 'HIGH',
+              region: inc.region || 'Gulf of Mannar Sector',
+              coordinates: inc.location?.coordinates ? [inc.location.coordinates[1], inc.location.coordinates[0]] : [9.28, 79.31],
+              timestamp: inc.createdAt || new Date().toISOString(),
+              validUntil: new Date(Date.now() + 86400000).toISOString(),
+              source: 'MARIS Operational Incident Registry',
+              description: inc.description || '',
+              mitigationAdvice: 'Coordinate with coastal enforcement checkposts and active dispatch patrols.',
+              status: inc.status === 'CLOSED' ? 'RESOLVED' : 'ACTIVE',
+            });
+          });
+        }
+
+        if (tipsRes.status === 'fulfilled') {
+          const tipsList = Array.isArray(tipsRes.value) ? tipsRes.value : tipsRes.value.data || [];
+          tipsList.forEach((tip: any) => {
+            mappedAlerts.push({
+              id: tip.tipsterId || tip._id,
+              title: `[Tip ${tip.tipsterId}] ${tip.title}`,
+              type: 'SANCTUARY_BREACH',
+              severity: tip.genuinenessScore > 75 ? 'CRITICAL' : 'ADVISORY',
+              region: 'Pseudonymous Tipster Feed',
+              coordinates: tip.location?.coordinates ? [tip.location.coordinates[1], tip.location.coordinates[0]] : [9.28, 79.31],
+              timestamp: tip.createdAt || new Date().toISOString(),
+              validUntil: new Date(Date.now() + 86400000).toISOString(),
+              source: `Tipster Verification Engine (Genuineness: ${tip.genuinenessScore}/100)`,
+              description: tip.description || '',
+              mitigationAdvice: 'Human verification recommended prior to legal enforcement.',
+              status: tip.status === 'ACTIONED' ? 'RESOLVED' : 'ACTIVE',
+            });
+          });
+        }
+
+        setAlertsList(mappedAlerts);
       } catch (err) {
-        console.error('Failed to load live alerts, using mock fallback', err);
+        console.warn('Failed to load live alerts from backend:', err);
       }
     };
 
     loadLiveAlerts();
-  }, [simulatedMode]);
+  }, []);
 
   const filteredAlerts = alertsList.filter((a) => {
     if (severityFilter === 'ALL') return true;

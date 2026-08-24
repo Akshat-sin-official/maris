@@ -18,25 +18,36 @@ export const PortalLoginPage: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState<UserRole>('Control Room Operator');
-  const [email, setEmail] = useState('operator.verma@maris.gov.in');
-  const [password, setPassword] = useState('••••••••••••');
+  const [email, setEmail] = useState('operator@maris.gov.in');
+  const [password, setPassword] = useState('password123');
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isHoveredBtn, setIsHoveredBtn] = useState(false);
 
   const handleRoleChange = (role: UserRole) => {
     setSelectedRole(role);
+    setLoginError(null);
     const emailMap: Record<UserRole, string> = {
-      'Control Room Operator': 'operator.verma@maris.gov.in',
-      'Researcher': 'meera.swaminathan@maris.gov.in',
-      'Coastal Officer': 'inspector.sundaram@maris.gov.in',
-      'Admin': 'sysadmin@maris.gov.in',
+      'Control Room Operator': 'operator@maris.gov.in',
+      'Researcher': 'researcher@maris.gov.in',
+      'Coastal Officer': 'officer@maris.gov.in',
+      'Admin': 'admin@maris.gov.in',
     };
     setEmail(emailMap[role]);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    await login(email, password, selectedRole);
-    navigate('/portal/dashboard');
+    setLoginError(null);
+    setIsLoggingIn(true);
+    try {
+      await login(email, password, selectedRole);
+      navigate('/portal/dashboard');
+    } catch (err: any) {
+      setLoginError(err.message || 'Authentication failed. Invalid email or password.');
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
   const rolesList: { role: UserRole; label: string; desc: string; icon: React.ElementType }[] = [
@@ -250,6 +261,27 @@ export const PortalLoginPage: React.FC = () => {
                 Choose your role profile to initialize authenticated control room session
               </p>
             </div>
+
+            {loginError && (
+              <div
+                style={{
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#991b1b',
+                  padding: '12px 16px',
+                  borderRadius: '10px',
+                  marginBottom: '20px',
+                  fontSize: '0.85rem',
+                  fontWeight: 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                }}
+              >
+                <Lock size={16} />
+                {loginError}
+              </div>
+            )}
 
             {/* Operational Role Selector Grid */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '28px' }}>

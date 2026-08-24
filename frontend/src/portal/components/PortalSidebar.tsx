@@ -42,18 +42,82 @@ export const PortalSidebar: React.FC<PortalSidebarProps> = ({
   const { user } = useAuth();
 
   const navItems: NavItem[] = [
-    { name: 'Dashboard', path: '/portal/dashboard', icon: LayoutDashboard },
-    { name: 'MARIS AI', path: '/portal/ai', icon: Bot, badge: 'Agentic' },
-    { name: 'Live Map', path: '/portal/map', icon: Compass },
-    { name: 'Marine Data', path: '/portal/intelligence', icon: Activity },
-    { name: 'PFZ Intelligence', path: '/portal/pfz', icon: Fish, badge: 'Live' },
-    { name: 'Alerts & Risk', path: '/portal/alerts', icon: AlertTriangle, badge: '2 Critical' },
-    { name: 'Field Intelligence', path: '/portal/field', icon: Radio },
-    { name: 'Investigations', path: '/portal/investigations', icon: ShieldAlert },
-    { name: 'Tipster Portal', path: '/portal/tipster', icon: Lock, badge: 'Private' },
-    { name: 'Reports', path: '/portal/reports', icon: FileText },
-    { name: 'Administration', path: '/portal/admin', icon: Settings, allowedRoles: ['Admin', 'Control Room Operator'] },
+    {
+      name: 'Dashboard',
+      path: '/portal/dashboard',
+      icon: LayoutDashboard,
+    },
+    {
+      name: 'MARIS Grok AI',
+      path: '/portal/ai',
+      icon: Bot,
+      badge: 'Agentic',
+      allowedRoles: ['Control Room Operator', 'Researcher', 'Coastal Officer', 'Admin'],
+    },
+    {
+      name: 'Live GIS Map',
+      path: '/portal/map',
+      icon: Compass,
+      allowedRoles: ['Control Room Operator', 'Coastal Officer', 'Admin'],
+    },
+    {
+      name: 'Marine Data & Feeds',
+      path: '/portal/intelligence',
+      icon: Activity,
+      allowedRoles: ['Control Room Operator', 'Researcher', 'Admin'],
+    },
+    {
+      name: 'PFZ Advisories',
+      path: '/portal/pfz',
+      icon: Fish,
+      badge: 'INCOIS',
+      allowedRoles: ['Control Room Operator', 'Researcher', 'Admin'],
+    },
+    {
+      name: 'Alerts & Hazards',
+      path: '/portal/alerts',
+      icon: AlertTriangle,
+      badge: 'Live',
+      allowedRoles: ['Control Room Operator', 'Coastal Officer', 'Admin'],
+    },
+    {
+      name: 'Field Observations',
+      path: '/portal/field',
+      icon: Radio,
+      allowedRoles: ['Control Room Operator', 'Coastal Officer', 'Admin'],
+    },
+    {
+      name: 'Investigations',
+      path: '/portal/investigations',
+      icon: ShieldAlert,
+      allowedRoles: ['Control Room Operator', 'Admin'],
+    },
+    {
+      name: 'Tipster Portal',
+      path: '/portal/tipster',
+      icon: Lock,
+      badge: 'Private',
+      allowedRoles: ['Control Room Operator', 'Coastal Officer', 'Admin'],
+    },
+    {
+      name: 'Research Reports',
+      path: '/portal/reports',
+      icon: FileText,
+      allowedRoles: ['Control Room Operator', 'Researcher', 'Admin'],
+    },
+    {
+      name: 'Administration',
+      path: '/portal/admin',
+      icon: Settings,
+      allowedRoles: ['Control Room Operator', 'Admin'],
+    },
   ];
+
+  const visibleNavItems = navItems.filter((item) => {
+    if (!item.allowedRoles) return true;
+    const currentRole = user?.role || 'Control Room Operator';
+    return item.allowedRoles.includes(currentRole);
+  });
 
   return (
     <>
@@ -197,7 +261,7 @@ export const PortalSidebar: React.FC<PortalSidebarProps> = ({
             </div>
           )}
 
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
             const isRestricted = item.allowedRoles && user && !item.allowedRoles.includes(user.role);
 

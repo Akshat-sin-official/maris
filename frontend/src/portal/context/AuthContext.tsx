@@ -37,10 +37,10 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(() => {
     const saved = localStorage.getItem('maris_auth_user');
-    return saved ? JSON.parse(saved) : DEFAULT_USER;
+    return saved ? JSON.parse(saved) : null;
   });
 
-  const [simulatedMode, setSimulatedMode] = useState<boolean>(true);
+  const [simulatedMode, setSimulatedMode] = useState<boolean>(false);
 
   useEffect(() => {
     if (user) {
@@ -64,58 +64,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        const jwtToken = data.token || data.data?.token;
-        const userObj = data.user || data.data?.user;
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || 'Invalid email or password. Please verify your credentials.');
+      }
 
-        if (jwtToken) {
-          localStorage.setItem('maris_jwt_token', jwtToken);
-        }
+      const data = await res.json();
+      const jwtToken = data.token || data.data?.token;
+      const userObj = data.user || data.data?.user;
 
-        const roleMapReverse: Record<string, UserRole> = {
-          'CONTROL_ROOM': 'Control Room Operator',
-          'SUPERVISOR': 'Researcher',
-          'FIELD_OFFICER': 'Coastal Officer',
-          'ORG_ADMIN': 'Admin',
+      if (jwtToken) {
+        localStorage.setItem('maris_jwt_token', jwtToken);
+      }
+
+      const roleMapReverse: Record<string, UserRole> = {
+        'CONTROL_ROOM': 'Control Room Operator',
+        'SUPERVISOR': 'Researcher',
+        'FIELD_OFFICER': 'Coastal Officer',
+        'ORG_ADMIN': 'Admin',
+      };
+
+      const mappedRole = userObj?.role ? (roleMapReverse[userObj.role] || role) : role;
+
+      setUser({
+        id: userObj?.id || userObj?._id || 'usr-live',
+        name: userObj?.name || 'Cmdr. Rajesh Verma',
+        email: userObj?.email || email || 'operator@maris.gov.in',
+        role: mappedRole,
+        avatar: (userObj?.name || 'Rajesh Verma').split(' ').map((n: string) => n[0]).join(''),
+        organization: userObj?.organization || 'Ministry of Ports, Shipping & Waterways',
+        activeRegion: 'Gulf of Mannar & Palk Bay Sector',
+      });
+    } catch (err: any) {
+      if (simulatedMode) {
+        const nameMap: Record<UserRole, string> = {
+          'Control Room Operator': 'Cmdr. Rajesh Verma',
+          'Researcher': 'Dr. Meera Swaminathan',
+          'Coastal Officer': 'Inspector K. Sundaram',
+          'Admin': 'Admin System Director',
         };
 
-        const mappedRole = userObj?.role ? (roleMapReverse[userObj.role] || role) : role;
+        const newUser: UserProfile = {
+          id: 'usr-' + Math.random().toString(36).substring(2, 7),
+          name: nameMap[role] || 'MARIS Operator',
+          email: email || `${role.toLowerCase().replace(/\s+/g, '.')}@maris.gov.in`,
+          role: role,
+          avatar: (nameMap[role] || 'MO').split(' ').map(n => n[0]).join(''),
+          organization: 'MARIS Operational Command Center',
+          activeRegion: 'Coromandel & Gulf of Mannar Zone',
+        };
 
-        setUser({
-          id: userObj?.id || userObj?._id || 'usr-live',
-          name: userObj?.name || 'Cmdr. Rajesh Verma',
-          email: userObj?.email || email || 'operator@maris.gov.in',
-          role: mappedRole,
-          avatar: (userObj?.name || 'Rajesh Verma').split(' ').map((n: string) => n[0]).join(''),
-          organization: userObj?.organization || 'Ministry of Ports, Shipping & Waterways',
-          activeRegion: 'Gulf of Mannar & Palk Bay Sector',
-        });
+        setUser(newUser);
         return;
       }
-    } catch (err) {
-      console.warn('Live API login check failed, using local profile fallback', err);
+      throw err;
     }
-
-    // Simulated/mock fallback
-    const nameMap: Record<UserRole, string> = {
-      'Control Room Operator': 'Cmdr. Rajesh Verma',
-      'Researcher': 'Dr. Meera Swaminathan',
-      'Coastal Officer': 'Inspector K. Sundaram',
-      'Admin': 'Admin System Director',
-    };
-
-    const newUser: UserProfile = {
-      id: 'usr-' + Math.random().toString(36).substring(2, 7),
-      name: nameMap[role] || 'MARIS Operator',
-      email: email || `${role.toLowerCase().replace(/\s+/g, '.')}@maris.gov.in`,
-      role: role,
-      avatar: (nameMap[role] || 'MO').split(' ').map(n => n[0]).join(''),
-      organization: 'MARIS Operational Command Center',
-      activeRegion: 'Coromandel & Gulf of Mannar Zone',
-    };
-
-    setUser(newUser);
   };
 
   const logout = () => {

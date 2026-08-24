@@ -7,7 +7,8 @@ import { EvidenceViewer } from '../components/EvidenceViewer';
 
 export const PortalFieldPage: React.FC = () => {
   const { simulatedMode } = useAuth();
-  const [observations, setObservations] = useState<FieldObservation[]>(INITIAL_FIELD_OBSERVATIONS);
+  const [observations, setObservations] = useState<FieldObservation[]>([]);
+  const [selectedObs, setSelectedObs] = useState<FieldObservation | null>(null);
   const [obsEvidence, setObsEvidence] = useState<Record<string, any[]>>({});
 
   useEffect(() => {
@@ -24,11 +25,6 @@ export const PortalFieldPage: React.FC = () => {
   }, [observations, simulatedMode]);
 
   useEffect(() => {
-    if (simulatedMode) {
-      setObservations(INITIAL_FIELD_OBSERVATIONS);
-      return;
-    }
-
     const loadLiveObservations = async () => {
       try {
         const data = await api.get('/observations');
@@ -39,7 +35,7 @@ export const PortalFieldPage: React.FC = () => {
           observerName: obs.creator?.name || 'Coastal Observer',
           observerRole: obs.creator?.role || 'Coastal Officer',
           category: obs.incidentType || 'VESSEL_ANOMALY',
-          title: obs.description?.split('\n')[0] || 'Unidentified Sighting',
+          title: obs.description?.split('\n')[0] || 'Unidentified Marine Observation',
           notes: obs.description || '',
           coordinates: obs.location?.coordinates ? [obs.location.coordinates[1], obs.location.coordinates[0]] : [9.18, 79.25],
           locationName: obs.locationName || 'Indian Territorial Waters',
@@ -50,12 +46,12 @@ export const PortalFieldPage: React.FC = () => {
         }));
         setObservations(mapped);
       } catch (err) {
-        console.error('Failed to load live observations, using mock fallback', err);
+        console.warn('Failed to load live observations from backend:', err);
       }
     };
 
     loadLiveObservations();
-  }, [simulatedMode]);
+  }, []);
 
   const handleSimulateSync = async () => {
     const clientId = 'CLIENT-OFFLINE-' + Math.floor(Math.random() * 90000 + 10000);

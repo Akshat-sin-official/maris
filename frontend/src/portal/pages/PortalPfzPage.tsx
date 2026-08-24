@@ -6,53 +6,41 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 
 export const PortalPfzPage: React.FC = () => {
-  const { simulatedMode } = useAuth();
-  const [bulletins, setBulletins] = useState<PfzBulletin[]>(INITIAL_PFZ_BULLETINS);
-  const [selectedPfz, setSelectedPfz] = useState<PfzBulletin>(INITIAL_PFZ_BULLETINS[0]);
+  const [bulletins, setBulletins] = useState<PfzBulletin[]>([]);
+  const [selectedPfz, setSelectedPfz] = useState<PfzBulletin | null>(null);
 
   useEffect(() => {
-    if (simulatedMode) {
-      setBulletins(INITIAL_PFZ_BULLETINS);
-      setSelectedPfz(INITIAL_PFZ_BULLETINS[0]);
-      return;
-    }
-
     const loadLivePFZ = async () => {
       try {
-        // Query general PFZ recommendations near Rameswaram/Gulf of Mannar area (lat 9.28, lon 79.3)
-        // We'll call the backend endpoint /api/v1/ai/query to generate dynamic ocean insights or direct services
-        const data = await api.post('/ai/query', {
-          query: 'Show active Potential Fishing Zones in the Coromandel coast sector.',
-          location: { type: 'Point', coordinates: [79.3, 9.28] }
-        });
-        
-        // If live agent traces are returned, map it to mock PfzBulletin structure
-        if (data.recommendations && data.recommendations.length > 0) {
-          const mapped: PfzBulletin[] = data.recommendations.map((rec: string, index: number) => ({
-            id: `PFZ-LIVE-${index}`,
-            title: `Live Advisory Zone ${index + 1}`,
-            zoneName: rec.split('near')[1]?.trim() || 'Rameswaram East Slope',
-            coordinates: [9.28 + (index * 0.1), 79.3 - (index * 0.05)],
-            distFromCoastKm: 12 + (index * 5),
-            sstCelsius: 28.5 + (index * 0.2),
-            chlorophyllMgM3: 0.65 - (index * 0.05),
-            depthMeters: 45 + (index * 15),
-            targetSpecies: ['Tuna', 'Mackerel', 'Sardines'],
+        const intelRes = await api.get('/intelligence/lookup?lat=9.28&lng=79.31');
+        const pfzList = intelRes.pfz || intelRes.data?.pfz || [];
+
+        if (Array.isArray(pfzList) && pfzList.length > 0) {
+          const mappedBulletins: PfzBulletin[] = pfzList.map((pfz: any, idx: number) => ({
+            id: pfz.zoneId || `PFZ-LIVE-${idx + 1}`,
+            title: `Live Advisory Zone ${idx + 1}`,
+            zoneName: `Gulf of Mannar & Rameswaram Slope`,
+            coordinates: [9.28 + idx * 0.05, 79.31 - idx * 0.04],
+            distFromCoastKm: Math.round(14.5 + idx * 3.5),
+            sstCelsius: intelRes.marineConditions?.waterTemp || 28.4,
+            chlorophyllMgM3: pfz.chlorophyll || 0.68,
+            depthMeters: 48 + idx * 12,
+            targetSpecies: ['Yellowfin Tuna', 'Indian Mackerel', 'Sardinella'],
             validityWindow: 'Valid for next 24 Hours',
-            potentialScore: 85 - (index * 8),
+            potentialScore: Math.round(92 - idx * 6),
             recommendedCraft: 'Motorized Crafts (IB / OBM)',
             status: 'ACTIVE',
           }));
-          setBulletins(mapped);
-          setSelectedPfz(mapped[0]);
+          setBulletins(mappedBulletins);
+          setSelectedPfz(mappedBulletins[0]);
         }
       } catch (err) {
-        console.error('Failed to query live PFZ info, falling back to mock bulletins', err);
+        console.warn('Failed to load live PFZ intelligence from backend:', err);
       }
     };
 
     loadLivePFZ();
-  }, [simulatedMode]);
+  }, []);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
@@ -91,81 +79,88 @@ export const PortalPfzPage: React.FC = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1.8fr)', gap: '24px', alignItems: 'start' }}>
         {/* Left Column: PFZ Bulletins List */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {bulletins.map((pfz) => {
-            const isSelected = selectedPfz.id === pfz.id;
-            return (
-              <div
-                key={pfz.id}
-                onClick={() => setSelectedPfz(pfz)}
-                style={{
-                  backgroundColor: '#ffffff',
-                  border: isSelected ? '1.5px solid #10b981' : '1px solid rgba(0,0,0,0.08)',
-                  borderRadius: '14px',
-                  padding: '18px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  boxShadow: isSelected ? '0 4px 20px rgba(16,185,129,0.1)' : '0 2px 8px rgba(0,0,0,0.02)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'rgba(0,0,0,0.4)', letterSpacing: '0.08em' }}>
-                    {pfz.id}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      color: '#15803d',
-                      backgroundColor: '#dcfce7',
-                      padding: '2px 8px',
-                      borderRadius: '9999px',
-                    }}
-                  >
-                    Potential: {pfz.potentialScore}/100
-                  </span>
-                </div>
+          {bulletins.length === 0 ? (
+            <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#fafafa', border: '1px solid rgba(0,0,0,0.08)', fontSize: '0.85rem', color: '#6b7280' }}>
+              Fetching live INCOIS ERDDAP Potential Fishing Zone advisory data...
+            </div>
+          ) : (
+            bulletins.map((pfz) => {
+              const isSelected = selectedPfz?.id === pfz.id;
+              return (
+                <div
+                  key={pfz.id}
+                  onClick={() => setSelectedPfz(pfz)}
+                  style={{
+                    backgroundColor: '#ffffff',
+                    border: isSelected ? '1.5px solid #10b981' : '1px solid rgba(0,0,0,0.08)',
+                    borderRadius: '14px',
+                    padding: '18px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: isSelected ? '0 4px 20px rgba(16,185,129,0.1)' : '0 2px 8px rgba(0,0,0,0.02)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'rgba(0,0,0,0.4)', letterSpacing: '0.08em' }}>
+                      {pfz.id}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        color: '#15803d',
+                        backgroundColor: '#dcfce7',
+                        padding: '2px 8px',
+                        borderRadius: '9999px',
+                      }}
+                    >
+                      Potential: {pfz.potentialScore}/100
+                    </span>
+                  </div>
 
-                <h4 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.05rem', margin: '0 0 6px', color: '#000' }}>
-                  {pfz.title}
-                </h4>
-                <div style={{ fontSize: '0.8rem', color: 'rgba(0,0,0,0.6)', marginBottom: '10px' }}>
-                  {pfz.zoneName} • {pfz.distFromCoastKm} km from coast
-                </div>
+                  <h4 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.05rem', margin: '0 0 6px', color: '#000' }}>
+                    {pfz.title}
+                  </h4>
+                  <div style={{ fontSize: '0.8rem', color: 'rgba(0,0,0,0.6)', marginBottom: '10px' }}>
+                    {pfz.zoneName} • {pfz.distFromCoastKm} km from coast
+                  </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '0.75rem', color: 'rgba(0,0,0,0.5)' }}>
-                  <span>SST: <strong>{pfz.sstCelsius}°C</strong></span>
-                  <span>Chlo: <strong>{pfz.chlorophyllMgM3} mg/m³</strong></span>
-                  <span>Depth: <strong>{pfz.depthMeters}m</strong></span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '0.75rem', color: 'rgba(0,0,0,0.5)' }}>
+                    <span>SST: <strong>{pfz.sstCelsius}°C</strong></span>
+                    <span>Chlo: <strong>{pfz.chlorophyllMgM3} mg/m³</strong></span>
+                    <span>Depth: <strong>{pfz.depthMeters}m</strong></span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
 
         {/* Right Column: Selected PFZ Detailed Analysis */}
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            border: '1px solid rgba(0,0,0,0.08)',
-            borderRadius: '16px',
-            padding: '24px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '20px',
-          }}
-        >
-          <div>
-            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>
-              SELECTED ZONE ANALYSIS ({selectedPfz.id})
+        {selectedPfz ? (
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid rgba(0,0,0,0.08)',
+              borderRadius: '16px',
+              padding: '24px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '20px',
+            }}
+          >
+            <div>
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>
+                SELECTED ZONE ANALYSIS ({selectedPfz.id})
+              </div>
+              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.4rem', margin: 0 }}>
+                {selectedPfz.title}
+              </h3>
+              <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'rgba(0,0,0,0.6)' }}>
+                Location: {selectedPfz.zoneName} [{selectedPfz.coordinates[0]}, {selectedPfz.coordinates[1]}]
+              </p>
             </div>
-            <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.4rem', margin: 0 }}>
-              {selectedPfz.title}
-            </h3>
-            <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'rgba(0,0,0,0.6)' }}>
-              Location: {selectedPfz.zoneName} [{selectedPfz.coordinates[0]}, {selectedPfz.coordinates[1]}]
-            </p>
-          </div>
 
           {/* Key Metrics Row */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
@@ -218,6 +213,7 @@ export const PortalPfzPage: React.FC = () => {
           {/* Spatial Preview Map snippet */}
           <PortalMapCanvas height="240px" initialLayers={{ pfz: true, sst: true }} />
         </div>
+        ) : null}
       </div>
     </div>
   );

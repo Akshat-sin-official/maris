@@ -27,8 +27,12 @@ export class MinioStorageProvider implements StorageProvider {
         await this.client.makeBucket(this.bucket);
         console.log(`Bucket '${this.bucket}' created successfully in MinIO.`);
       }
-    } catch (err) {
-      console.warn(`Could not initialize bucket '${this.bucket}' automatically:`, err);
+    } catch (err: any) {
+      if (err.code === 'ECONNREFUSED' || err.message?.includes('ECONNREFUSED')) {
+        console.info(`[Storage] Local MinIO service not detected on port ${env.MINIO_PORT}. Evidence storage using local disk fallback.`);
+      } else {
+        console.warn(`Could not initialize bucket '${this.bucket}':`, err.message || err);
+      }
     }
   }
 

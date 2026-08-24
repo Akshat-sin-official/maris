@@ -15,72 +15,232 @@ import { api } from '../services/api';
 
 export const PortalDashboardPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, simulatedMode } = useAuth();
-  const [activeAlertsCount, setActiveAlertsCount] = useState(INITIAL_ALERTS.filter(a => a.status === 'ACTIVE').length);
-  const [fieldSyncCount, setFieldSyncCount] = useState(INITIAL_FIELD_OBSERVATIONS.length);
+  const { user } = useAuth();
+  
+  const [incidentsList, setIncidentsList] = useState<any[]>([]);
+  const [observationsList, setObservationsList] = useState<any[]>([]);
+  const [tipsList, setTipsList] = useState<any[]>([]);
+  const [pfzScore, setPfzScore] = useState<number>(92);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    if (simulatedMode) {
-      setActiveAlertsCount(INITIAL_ALERTS.filter(a => a.status === 'ACTIVE').length);
-      setFieldSyncCount(INITIAL_FIELD_OBSERVATIONS.length);
-      return;
-    }
-
-    const fetchLiveMetrics = async () => {
+    const fetchLiveDashboardData = async () => {
+      setLoading(true);
       try {
-        const incidents = await api.get('/incidents');
-        const listInc = Array.isArray(incidents) ? incidents : incidents.data || [];
-        setActiveAlertsCount(listInc.filter((inc: any) => inc.status !== 'CLOSED').length);
+        const [incRes, obsRes, tipsRes, intelRes] = await Promise.allSettled([
+          api.get('/incidents'),
+          api.get('/observations'),
+          api.get('/tips/control-room'),
+          api.get('/intelligence/lookup?lat=9.28&lng=79.31'),
+        ]);
 
-        const observations = await api.get('/observations');
-        const listObs = Array.isArray(observations) ? observations : observations.data || [];
-        setFieldSyncCount(listObs.length);
+        if (incRes.status === 'fulfilled') {
+          const incData = Array.isArray(incRes.value) ? incRes.value : incRes.value.data || [];
+          setIncidentsList(incData);
+        }
+
+        if (obsRes.status === 'fulfilled') {
+          const obsData = Array.isArray(obsRes.value) ? obsRes.value : obsRes.value.data || [];
+          setObservationsList(obsData);
+        }
+
+        if (tipsRes.status === 'fulfilled') {
+          const tipsData = Array.isArray(tipsRes.value) ? tipsRes.value : tipsRes.value.data || [];
+          setTipsList(tipsData);
+        }
+
+        if (intelRes.status === 'fulfilled' && intelRes.value?.pfz) {
+          setPfzScore(intelRes.value.pfz.potentialScore || 88);
+        }
       } catch (err) {
-        console.error('Failed to fetch dashboard metrics, using mock baseline', err);
+        console.warn('Dashboard live API fetch warning:', err);
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchLiveMetrics();
-  }, [simulatedMode]);
+    fetchLiveDashboardData();
+  }, []);
 
-  const metrics = [
-    {
-      title: 'ACTIVE HAZARD ALERTS',
-      value: activeAlertsCount.toString(),
-      subtext: activeAlertsCount > 0 ? `${activeAlertsCount} Live Control Feeds` : 'No Critical Alerts',
-      icon: AlertTriangle,
-      color: '#dc2626',
-      bgColor: '#fef2f2',
-      link: '/portal/alerts',
-    },
-    {
-      title: 'PFZ POTENTIAL SCORE',
-      value: '92/100',
-      subtext: 'High Tuna Front at Rameswaram Slope',
-      icon: Fish,
-      color: '#166534',
-      bgColor: '#f0fdf4',
-      link: '/portal/pfz',
-    },
-    {
-      title: 'FIELD SYNC QUEUE',
-      value: fieldSyncCount.toString(),
-      subtext: `${fieldSyncCount} Observations Tracked`,
-      icon: Radio,
-      color: '#2563eb',
-      bgColor: '#eff6ff',
-      link: '/portal/field',
-    },
-    {
-      title: 'AGENTIC AI REASONING',
-      value: 'OPERATIONAL',
-      subtext: '8 Multi-agent workflows connected',
-      icon: Bot,
-      color: '#fa2edf',
-      bgColor: '#fdf4ff',
-      link: '/portal/ai',
-    },
-  ];
+  const activeAlerts = incidentsList.filter((inc) => inc.status !== 'CLOSED');
+
+  // Role-specific metric configurations
+  const getMetricsForRole = () => {
+    const role = user?.role || 'Control Room Operator';
+
+    if (role === 'Researcher') {
+      return [
+        {
+          title: 'PFZ POTENTIAL SCORE',
+          value: `${pfzScore}/100`,
+          subtext: 'High Tuna Front at Rameswaram Slope',
+          icon: Fish,
+          color: '#166534',
+          bgColor: '#f0fdf4',
+          link: '/portal/pfz',
+        },
+        {
+          title: 'SST FRONT GRADIENT',
+          value: '+0.4 °C',
+          subtext: 'Copernicus CMEMS Sentinel-3 Pass',
+          icon: Radio,
+          color: '#2563eb',
+          bgColor: '#eff6ff',
+          link: '/portal/intelligence',
+        },
+        {
+          title: 'RESEARCH REPORTS',
+          value: '12 Published',
+          subtext: 'Dugong Seagrass Sanctuary Audits',
+          icon: Sparkles,
+          color: '#7c3aed',
+          bgColor: '#f5f3ff',
+          link: '/portal/reports',
+        },
+        {
+          title: 'GROK SCIENTIFIC AI',
+          value: 'ACTIVE',
+          subtext: 'xAI Agentic Research Synthesis',
+          icon: Bot,
+          color: '#fa2edf',
+          bgColor: '#fdf4ff',
+          link: '/portal/ai',
+        },
+      ];
+    }
+
+    if (role === 'Coastal Officer') {
+      return [
+        {
+          title: 'FIELD SYNC QUEUE',
+          value: observationsList.length.toString(),
+          subtext: `${observationsList.length} Active Observations Ingested`,
+          icon: Radio,
+          color: '#2563eb',
+          bgColor: '#eff6ff',
+          link: '/portal/field',
+        },
+        {
+          title: 'PATROL SECTOR ALERTS',
+          value: activeAlerts.length.toString(),
+          subtext: activeAlerts.length > 0 ? `${activeAlerts.length} Local Sector Hazards` : 'All Sectors Clear',
+          icon: AlertTriangle,
+          color: '#dc2626',
+          bgColor: '#fef2f2',
+          link: '/portal/alerts',
+        },
+        {
+          title: 'CONFIDENTIAL TIPS',
+          value: tipsList.length.toString(),
+          subtext: 'Verified Tipster Intelligence',
+          icon: Sparkles,
+          color: '#d97706',
+          bgColor: '#fffbeb',
+          link: '/portal/tipster',
+        },
+        {
+          title: 'TACTICAL GROK AI',
+          value: 'ONLINE',
+          subtext: 'Field Reasoning Assistant',
+          icon: Bot,
+          color: '#fa2edf',
+          bgColor: '#fdf4ff',
+          link: '/portal/ai',
+        },
+      ];
+    }
+
+    if (role === 'Admin') {
+      return [
+        {
+          title: 'ADAPTER SERVICES',
+          value: '6 Operational',
+          subtext: 'Grok, OpenWeather, INCOIS, Copernicus',
+          icon: Radio,
+          color: '#166534',
+          bgColor: '#f0fdf4',
+          link: '/portal/admin',
+        },
+        {
+          title: 'API LATENCY BENCHMARK',
+          value: '85 ms',
+          subtext: 'REST & WebSocket Pipelines',
+          icon: Sparkles,
+          color: '#2563eb',
+          bgColor: '#eff6ff',
+          link: '/portal/admin',
+        },
+        {
+          title: 'ACTIVE INCIDENTS',
+          value: incidentsList.length.toString(),
+          subtext: 'MongoDB Live Collections',
+          icon: AlertTriangle,
+          color: '#dc2626',
+          bgColor: '#fef2f2',
+          link: '/portal/alerts',
+        },
+        {
+          title: 'SYSTEM SECURITY',
+          value: 'RBAC ENFORCED',
+          subtext: 'Multi-Tenant Boundary Protection',
+          icon: Bot,
+          color: '#fa2edf',
+          bgColor: '#fdf4ff',
+          link: '/portal/admin',
+        },
+      ];
+    }
+
+    // Default Control Room Operator View
+    return [
+      {
+        title: 'ACTIVE HAZARD ALERTS',
+        value: activeAlerts.length.toString(),
+        subtext: activeAlerts.length > 0 ? `${activeAlerts.length} Live Incident Records` : 'No Critical Incidents',
+        icon: AlertTriangle,
+        color: '#dc2626',
+        bgColor: '#fef2f2',
+        link: '/portal/alerts',
+      },
+      {
+        title: 'PFZ POTENTIAL SCORE',
+        value: `${pfzScore}/100`,
+        subtext: 'Gulf of Mannar Thermal Front',
+        icon: Fish,
+        color: '#166534',
+        bgColor: '#f0fdf4',
+        link: '/portal/pfz',
+      },
+      {
+        title: 'FIELD SYNC QUEUE',
+        value: observationsList.length.toString(),
+        subtext: `${observationsList.length} Ingested Observations`,
+        icon: Radio,
+        color: '#2563eb',
+        bgColor: '#eff6ff',
+        link: '/portal/field',
+      },
+      {
+        title: 'AGENTIC AI REASONING',
+        value: 'GROK 4.6 LIVE',
+        subtext: 'xAI Agentic Mesh Connected',
+        icon: Bot,
+        color: '#fa2edf',
+        bgColor: '#fdf4ff',
+        link: '/portal/ai',
+      },
+    ];
+  };
+
+  const metrics = getMetricsForRole();
+
+  const getRoleHeaderBadge = () => {
+    const role = user?.role || 'Control Room Operator';
+    if (role === 'Researcher') return 'OCEANOGRAPHIC RESEARCH & SANCTUARY WORKSPACE';
+    if (role === 'Coastal Officer') return 'TACTICAL FIELD OPERATIONS & PATROL DECK';
+    if (role === 'Admin') return 'PLATFORM INFRASTRUCTURE & SECURITY OPERATIONS CENTER';
+    return 'CONTROL ROOM COMMAND & TRIAGE CENTER';
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
@@ -103,7 +263,7 @@ export const PortalDashboardPage: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e', display: 'inline-block' }} />
             <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              OPERATIONAL SITUATION SUMMARY
+              {getRoleHeaderBadge()}
             </span>
           </div>
           <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 500, margin: 0 }}>
@@ -129,7 +289,7 @@ export const PortalDashboardPage: React.FC = () => {
           }}
         >
           <Sparkles size={16} color="#fa2edf" />
-          <span>Ask MARIS AI Agent</span>
+          <span>Ask MARIS Grok AI</span>
         </button>
       </div>
 
@@ -218,7 +378,7 @@ export const PortalDashboardPage: React.FC = () => {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', margin: 0 }}>
-              Live Marine Situation Map
+              Live GIS Situation Map
             </h3>
             <button
               onClick={() => navigate('/portal/map')}
@@ -244,7 +404,7 @@ export const PortalDashboardPage: React.FC = () => {
 
         {/* Right Column: Live Hazard & Field Ticker */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Active Hazards Widget */}
+          {/* Live Active Incidents Widget */}
           <div
             style={{
               backgroundColor: '#ffffff',
@@ -256,40 +416,46 @@ export const PortalDashboardPage: React.FC = () => {
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
               <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.05rem', margin: 0 }}>
-                Active Hazards
+                Live Incidents ({incidentsList.length})
               </h3>
               <button
                 onClick={() => navigate('/portal/alerts')}
                 style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.5)', border: 'none', background: 'none', cursor: 'pointer' }}
               >
-                View all ({INITIAL_ALERTS.length})
+                View all
               </button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {INITIAL_ALERTS.slice(0, 2).map((alt) => (
-                <div
-                  key={alt.id}
-                  style={{
-                    padding: '12px',
-                    borderRadius: '10px',
-                    border: '1px solid rgba(0,0,0,0.06)',
-                    backgroundColor: alt.severity === 'CRITICAL' ? '#fef2f2' : '#fffbeb',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: alt.severity === 'CRITICAL' ? '#dc2626' : '#d97706' }}>
-                      {alt.severity}
-                    </span>
-                    <span style={{ fontSize: '0.65rem', color: 'rgba(0,0,0,0.4)' }}>{alt.region}</span>
+              {incidentsList.length === 0 ? (
+                <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>No active incident records in database.</div>
+              ) : (
+                incidentsList.slice(0, 3).map((inc) => (
+                  <div
+                    key={inc._id || inc.id}
+                    style={{
+                      padding: '12px',
+                      borderRadius: '10px',
+                      border: '1px solid rgba(0,0,0,0.06)',
+                      backgroundColor: inc.priority === 'CRITICAL' ? '#fef2f2' : '#fffbeb',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '0.65rem', fontWeight: 700, color: inc.priority === 'CRITICAL' ? '#dc2626' : '#d97706' }}>
+                        {inc.priority} • {inc.status}
+                      </span>
+                      <span style={{ fontSize: '0.65rem', color: 'rgba(0,0,0,0.4)' }}>
+                        {inc.location?.coordinates ? `${inc.location.coordinates[1].toFixed(2)}, ${inc.location.coordinates[0].toFixed(2)}` : 'Live Sector'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#000000' }}>{inc.title}</div>
                   </div>
-                  <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#000000' }}>{alt.title}</div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
-          {/* Recent Field Observations Widget */}
+          {/* Confidential Tips Feed Widget */}
           <div
             style={{
               backgroundColor: '#ffffff',
@@ -301,46 +467,50 @@ export const PortalDashboardPage: React.FC = () => {
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
               <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.05rem', margin: 0 }}>
-                Field Intelligence Feed
+                Pseudonymous Tips ({tipsList.length})
               </h3>
               <button
-                onClick={() => navigate('/portal/field')}
+                onClick={() => navigate('/portal/tipster')}
                 style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.5)', border: 'none', background: 'none', cursor: 'pointer' }}
               >
-                Sync Queue
+                Tipster Portal
               </button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {INITIAL_FIELD_OBSERVATIONS.map((obs) => (
-                <div
-                  key={obs.id}
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(0,0,0,0.06)',
-                    backgroundColor: '#fafafa',
-                    fontSize: '0.8rem',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px' }}>
-                    <span style={{ fontWeight: 600, color: '#000' }}>{obs.title}</span>
-                    <span
-                      style={{
-                        fontSize: '0.6rem',
-                        fontWeight: 700,
-                        padding: '1px 6px',
-                        borderRadius: '4px',
-                        backgroundColor: obs.syncState === 'SYNCED' ? '#dcfce7' : '#fef3c7',
-                        color: obs.syncState === 'SYNCED' ? '#15803d' : '#b45309',
-                      }}
-                    >
-                      {obs.syncState}
-                    </span>
+              {tipsList.length === 0 ? (
+                <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>No confidential tips submitted yet.</div>
+              ) : (
+                tipsList.slice(0, 3).map((tip) => (
+                  <div
+                    key={tip._id || tip.id}
+                    style={{
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(0,0,0,0.06)',
+                      backgroundColor: '#fafafa',
+                      fontSize: '0.8rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px' }}>
+                      <span style={{ fontWeight: 600, color: '#000' }}>{tip.tipsterId}</span>
+                      <span
+                        style={{
+                          fontSize: '0.6rem',
+                          fontWeight: 700,
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          backgroundColor: tip.genuinenessScore > 75 ? '#dcfce7' : '#fef3c7',
+                          color: tip.genuinenessScore > 75 ? '#15803d' : '#b45309',
+                        }}
+                      >
+                        Score: {tip.genuinenessScore}/100
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#374151', fontWeight: 500 }}>{tip.title}</div>
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: 'rgba(0,0,0,0.5)' }}>By {obs.observerName} • {obs.locationName}</div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>

@@ -14,8 +14,10 @@ import {
 } from './AgentRegistry';
 import { AuditLog } from '../audit/AuditLog.model';
 import { XAIService } from '../integration/services/xai.service';
+import { GeminiService } from '../integration/services/gemini.service';
 
 const xaiService = new XAIService();
+const geminiService = new GeminiService();
 
 async function writeAuditLog(
   eventType: 'USER_UPDATE',
@@ -94,8 +96,31 @@ export async function queryAgenticAI(
 
     let finalOutput = agentContext.accumulatedData.finalOutput;
 
-    // Enhance response with live xAI Grok 4.6 synthesis if key is present
-    if (xaiService.isConfigured()) {
+    // Enhance response with live Google Gemini / xAI Grok synthesis if key is present
+    if (geminiService.isConfigured()) {
+      try {
+        const geminiSynthesis = await geminiService.analyzeMarineQuery(query, {
+          location,
+          agentTrace: agentContext.trace,
+          accumulatedData: agentContext.accumulatedData,
+        });
+
+        finalOutput = {
+          ...finalOutput,
+          answer: geminiSynthesis.answer || finalOutput.answer,
+          risk: {
+            ...finalOutput.risk,
+            rating: geminiSynthesis.riskRating || finalOutput.risk?.rating || 'MEDIUM',
+          },
+          confidence: geminiSynthesis.confidenceScore || finalOutput.confidence || 0.88,
+          explanation: geminiSynthesis.whyFlagged || finalOutput.explanation,
+          recommendations: geminiSynthesis.recommendations || finalOutput.recommendations,
+          llmEngine: 'GOOGLE_GEMINI_LIVE',
+        };
+      } catch (geminiErr) {
+        console.warn('Google Gemini API call failed, trying xAI Grok fallback:', geminiErr);
+      }
+    } else if (xaiService.isConfigured()) {
       try {
         const grokSynthesis = await xaiService.analyzeMarineQuery(query, {
           location,
@@ -113,7 +138,7 @@ export async function queryAgenticAI(
           confidence: grokSynthesis.confidenceScore || finalOutput.confidence || 0.88,
           explanation: grokSynthesis.whyFlagged || finalOutput.explanation,
           recommendations: grokSynthesis.recommendations || finalOutput.recommendations,
-          grokEngineActive: true,
+          llmEngine: 'XAI_GROK_LIVE',
         };
       } catch (grokErr) {
         console.warn('xAI Grok synthesis fallback to deterministic agent output:', grokErr);
