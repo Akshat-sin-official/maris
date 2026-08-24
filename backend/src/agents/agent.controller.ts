@@ -13,11 +13,12 @@ import {
   ExplanationAgent,
 } from './AgentRegistry';
 import { AuditLog } from '../audit/AuditLog.model';
+import { env } from '../config/env';
 import { XAIService } from '../integration/services/xai.service';
 import { GeminiService } from '../integration/services/gemini.service';
 
-const xaiService = new XAIService();
-const geminiService = new GeminiService();
+const xaiService = new XAIService(env.XAI_API_KEY);
+const geminiService = new GeminiService(env.GEMINI_API_KEY);
 
 async function writeAuditLog(
   eventType: 'USER_UPDATE',

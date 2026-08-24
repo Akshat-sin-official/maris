@@ -70,8 +70,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const data = await res.json();
-      const jwtToken = data.token || data.data?.token;
-      const userObj = data.user || data.data?.user;
+      const jwtToken = data.data?.accessToken || data.token || data.accessToken || data.data?.token;
+      const userObj = data.data?.user || data.user;
 
       if (jwtToken) {
         localStorage.setItem('maris_jwt_token', jwtToken);
@@ -96,27 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         activeRegion: 'Gulf of Mannar & Palk Bay Sector',
       });
     } catch (err: any) {
-      if (simulatedMode) {
-        const nameMap: Record<UserRole, string> = {
-          'Control Room Operator': 'Cmdr. Rajesh Verma',
-          'Researcher': 'Dr. Meera Swaminathan',
-          'Coastal Officer': 'Inspector K. Sundaram',
-          'Admin': 'Admin System Director',
-        };
-
-        const newUser: UserProfile = {
-          id: 'usr-' + Math.random().toString(36).substring(2, 7),
-          name: nameMap[role] || 'MARIS Operator',
-          email: email || `${role.toLowerCase().replace(/\s+/g, '.')}@maris.gov.in`,
-          role: role,
-          avatar: (nameMap[role] || 'MO').split(' ').map(n => n[0]).join(''),
-          organization: 'MARIS Operational Command Center',
-          activeRegion: 'Coromandel & Gulf of Mannar Zone',
-        };
-
-        setUser(newUser);
-        return;
-      }
+      console.error('Authentication error:', err);
       throw err;
     }
   };

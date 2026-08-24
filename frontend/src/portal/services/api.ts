@@ -11,7 +11,7 @@ async function getHeaders(): Promise<Record<string, string>> {
       });
       if (res.ok) {
         const data = await res.json();
-        token = data.token || data.data?.token;
+        token = data.data?.accessToken || data.token || data.accessToken || data.data?.token;
         if (token) {
           localStorage.setItem('maris_jwt_token', token);
         }

@@ -1,13 +1,14 @@
 import React from 'react';
-import { ShieldAlert, CheckCircle2, Cpu } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, Cpu, FileText, Compass } from 'lucide-react';
 
 export interface AiResponsePayload {
   query: string;
   answer: string;
   riskRating: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  confidenceScore: number; // 0 to 1.0
+  confidenceScore: number;
   reasoningSteps: string[];
   recommendations: string[];
+  evidence?: string[];
   sources: {
     name: string;
     type: string;
@@ -35,6 +36,135 @@ export const MarisAiCard: React.FC<MarisAiCardProps> = ({ payload }) => {
 
   const riskStyle = riskColors[payload.riskRating] || riskColors.LOW;
 
+  // Clean raw answer string if stringified JSON
+  const getCleanAnswerText = (rawAnswer: string): string => {
+    if (!rawAnswer) return '';
+    let text = rawAnswer.trim();
+    if (text.startsWith('{') && text.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed.answer) return parsed.answer;
+      } catch (e) {
+        // Fall back to original text
+      }
+    }
+    return text;
+  };
+
+  const answerText = getCleanAnswerText(payload.answer);
+
+  // Helper to parse Markdown paragraphs & bold/code styling
+  const renderFormattedMarkdown = (content: string) => {
+    const lines = content.split('\n').filter((line) => line.trim() !== '');
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {lines.map((line, lineIdx) => {
+          const trimmed = line.trim();
+
+          // 1. Heading Level 3 (### Heading)
+          if (trimmed.startsWith('###')) {
+            const titleText = trimmed.replace(/^###\s*/, '');
+            return (
+              <h3
+                key={lineIdx}
+                style={{
+                  fontFamily: 'var(--font-heading)',
+                  fontSize: '1.2rem',
+                  fontWeight: 600,
+                  color: '#000000',
+                  margin: '8px 0 2px',
+                  letterSpacing: '0.01em',
+                  borderBottom: '1px solid rgba(0,0,0,0.06)',
+                  paddingBottom: '6px',
+                }}
+              >
+                {titleText}
+              </h3>
+            );
+          }
+
+          // 2. Bullet point line (* ... or - ...)
+          if (trimmed.startsWith('*') || trimmed.startsWith('-')) {
+            const bulletContent = trimmed.replace(/^[*|-]\s*/, '');
+            return (
+              <div
+                key={lineIdx}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  backgroundColor: '#fbfcfd',
+                  border: '1px solid rgba(0,0,0,0.06)',
+                  fontSize: '0.9rem',
+                  lineHeight: 1.5,
+                  color: 'rgba(0,0,0,0.85)',
+                }}
+              >
+                <span style={{ color: '#2563eb', fontWeight: 700, fontSize: '1.1rem', lineHeight: 1 }}>•</span>
+                <div>{parseInlineStyles(bulletContent)}</div>
+              </div>
+            );
+          }
+
+          // 3. Normal paragraph
+          return (
+            <p
+              key={lineIdx}
+              style={{
+                margin: 0,
+                fontSize: '0.92rem',
+                lineHeight: 1.6,
+                color: 'rgba(0,0,0,0.82)',
+              }}
+            >
+              {parseInlineStyles(trimmed)}
+            </p>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Helper to parse **bold text** and `inline code`
+  const parseInlineStyles = (text: string) => {
+    // Regex matches **bold** or `code`
+    const regex = /(\*\*.*?\*\*|`.*?`)/g;
+    const parts = text.split(regex);
+
+    return parts.map((part, idx) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return (
+          <strong key={idx} style={{ fontWeight: 600, color: '#000000' }}>
+            {part.slice(2, -2)}
+          </strong>
+        );
+      }
+      if (part.startsWith('`') && part.endsWith('`')) {
+        return (
+          <code
+            key={idx}
+            style={{
+              backgroundColor: '#f1f5f9',
+              color: '#0f172a',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              fontSize: '0.8rem',
+              fontFamily: 'monospace',
+              fontWeight: 600,
+              border: '1px solid rgba(0,0,0,0.08)',
+            }}
+          >
+            {part.slice(1, -1)}
+          </code>
+        );
+      }
+      return part;
+    });
+  };
+
   return (
     <div
       style={{
@@ -42,14 +172,14 @@ export const MarisAiCard: React.FC<MarisAiCardProps> = ({ payload }) => {
         border: '1px solid rgba(0,0,0,0.08)',
         borderRadius: '16px',
         boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
-        padding: '24px',
+        padding: '26px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '20px',
+        gap: '22px',
         fontFamily: 'var(--font-body)',
       }}
     >
-      {/* Header Bar: Risk & Confidence */}
+      {/* Header Bar: User Query & Risk Pill */}
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div
@@ -71,7 +201,7 @@ export const MarisAiCard: React.FC<MarisAiCardProps> = ({ payload }) => {
             <span>RISK LEVEL: {payload.riskRating}</span>
           </div>
 
-          <span style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', fontWeight: 500 }}>
+          <span style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', fontWeight: 600 }}>
             Provenanced Decision Support
           </span>
         </div>
@@ -103,28 +233,62 @@ export const MarisAiCard: React.FC<MarisAiCardProps> = ({ payload }) => {
         </div>
       </div>
 
-      {/* Answer Body */}
-      <div>
-        <h3
-          style={{
-            fontFamily: 'var(--font-heading)',
-            fontSize: '1.25rem',
-            fontWeight: 500,
-            margin: '0 0 8px',
-            color: '#000000',
-            lineHeight: 1.35,
-          }}
-        >
-          {payload.answer}
-        </h3>
+      {/* User Query Banner */}
+      <div
+        style={{
+          padding: '12px 16px',
+          borderRadius: '10px',
+          backgroundColor: '#fafafa',
+          border: '1px solid rgba(0,0,0,0.06)',
+          fontSize: '0.88rem',
+          fontWeight: 600,
+          color: '#000000',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+        }}
+      >
+        <Compass size={16} color="#6b7280" />
+        <span>Query: "{payload.query}"</span>
       </div>
 
-      {/* Multi-Agent Reasoning Trace Accordion / Timeline */}
-      {payload.reasoningSteps && payload.reasoningSteps.length > 0 && (
+      {/* Formatted Answer Body */}
+      <div>
+        {renderFormattedMarkdown(answerText)}
+      </div>
+
+      {/* Attributed Evidence List (If Present) */}
+      {payload.evidence && payload.evidence.length > 0 && (
         <div
           style={{
             backgroundColor: '#f8fafc',
-            border: '1px solid rgba(0,0,0,0.06)',
+            border: '1px solid #e2e8f0',
+            borderRadius: '12px',
+            padding: '16px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+            <FileText size={15} color="#2563eb" />
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              ATTRIBUTED EVIDENCE & FACT CHECKING
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {payload.evidence.map((ev, idx) => (
+              <div key={idx} style={{ fontSize: '0.82rem', color: '#334155', lineHeight: 1.45, paddingLeft: '12px', borderLeft: '2px solid #3b82f6' }}>
+                {parseInlineStyles(ev)}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Multi-Agent Reasoning Trace */}
+      {payload.reasoningSteps && payload.reasoningSteps.length > 0 && (
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            border: '1px solid rgba(0,0,0,0.08)',
             borderRadius: '12px',
             padding: '16px',
           }}
@@ -157,7 +321,7 @@ export const MarisAiCard: React.FC<MarisAiCardProps> = ({ payload }) => {
         </div>
       )}
 
-      {/* Recommended Actions */}
+      {/* Recommended Decision Support Actions */}
       {payload.recommendations && payload.recommendations.length > 0 && (
         <div>
           <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
