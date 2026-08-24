@@ -23,6 +23,32 @@ interface MapLayersState {
   alerts: boolean;
 }
 
+const CARTO_DARK_STYLE: maplibregl.StyleSpecification = {
+  version: 8,
+  sources: {
+    'carto-dark-tiles': {
+      type: 'raster',
+      tiles: [
+        'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+        'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+        'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+        'https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+      ],
+      tileSize: 256,
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+    },
+  },
+  layers: [
+    {
+      id: 'carto-dark-layer',
+      type: 'raster',
+      source: 'carto-dark-tiles',
+      minzoom: 0,
+      maxzoom: 19,
+    },
+  ],
+};
+
 export const PortalLiveMapPage: React.FC = () => {
   const navigate = useNavigate();
   const { simulatedMode } = useAuth();
@@ -68,7 +94,7 @@ export const PortalLiveMapPage: React.FC = () => {
 
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+      style: CARTO_DARK_STYLE,
       center: defaultCenter,
       zoom: 9,
       attributionControl: false,

@@ -1,8 +1,9 @@
 import dotenv from 'dotenv';
+import path from 'path';
 import { z } from 'zod';
 
-// Load environment variables from .env
-dotenv.config();
+// Load environment variables from .env relative to this config file
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -41,6 +42,8 @@ const envSchema = z.object({
   MINIO_USE_SSL: z.preprocess((val) => val === 'true' || val === true, z.boolean()).default(false),
   MAX_IMAGE_SIZE_MB: z.coerce.number().default(10),
   MAX_VIDEO_SIZE_MB: z.coerce.number().default(50),
+  // xAI Grok API Key
+  XAI_API_KEY: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -52,27 +52,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user]);
 
   const login = async (email?: string, password?: string, role: UserRole = 'Control Room Operator') => {
-    if (!simulatedMode) {
-      try {
-        const res = await fetch('/api/v1/auth/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email: email || 'operator@maris.gov.in',
-            password: password || 'password123',
-          }),
-        });
+    try {
+      const res = await fetch('http://localhost:3000/api/v1/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email || 'operator@maris.gov.in',
+          password: password || 'password123',
+        }),
+      });
 
-        if (!res.ok) {
-          throw new Error('Authentication failed');
+      if (res.ok) {
+        const data = await res.json();
+        const jwtToken = data.token || data.data?.token;
+        const userObj = data.user || data.data?.user;
+
+        if (jwtToken) {
+          localStorage.setItem('maris_jwt_token', jwtToken);
         }
 
-        const data = await res.json();
-        localStorage.setItem('maris_jwt_token', data.token);
-
-        // Map backend roles to frontend roles
         const roleMapReverse: Record<string, UserRole> = {
           'CONTROL_ROOM': 'Control Room Operator',
           'SUPERVISOR': 'Researcher',
@@ -80,21 +80,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           'ORG_ADMIN': 'Admin',
         };
 
-        const mappedRole = roleMapReverse[data.user.role] || role;
+        const mappedRole = userObj?.role ? (roleMapReverse[userObj.role] || role) : role;
 
         setUser({
-          id: data.user.id || 'usr-live',
-          name: data.user.name,
-          email: data.user.email,
+          id: userObj?.id || userObj?._id || 'usr-live',
+          name: userObj?.name || 'Cmdr. Rajesh Verma',
+          email: userObj?.email || email || 'operator@maris.gov.in',
           role: mappedRole,
-          avatar: data.user.name.split(' ').map((n: string) => n[0]).join(''),
-          organization: data.user.organization || 'MARIS Operations',
-          activeRegion: 'Live Sector Area',
+          avatar: (userObj?.name || 'Rajesh Verma').split(' ').map((n: string) => n[0]).join(''),
+          organization: userObj?.organization || 'Ministry of Ports, Shipping & Waterways',
+          activeRegion: 'Gulf of Mannar & Palk Bay Sector',
         });
         return;
-      } catch (err) {
-        console.warn('Live login failed, falling back to simulated mode', err);
       }
+    } catch (err) {
+      console.warn('Live API login check failed, using local profile fallback', err);
     }
 
     // Simulated/mock fallback

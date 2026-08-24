@@ -50,6 +50,7 @@ export const PortalSidebar: React.FC<PortalSidebarProps> = ({
     { name: 'Alerts & Risk', path: '/portal/alerts', icon: AlertTriangle, badge: '2 Critical' },
     { name: 'Field Intelligence', path: '/portal/field', icon: Radio },
     { name: 'Investigations', path: '/portal/investigations', icon: ShieldAlert },
+    { name: 'Tipster Portal', path: '/portal/tipster', icon: Lock, badge: 'Private' },
     { name: 'Reports', path: '/portal/reports', icon: FileText },
     { name: 'Administration', path: '/portal/admin', icon: Settings, allowedRoles: ['Admin', 'Control Room Operator'] },
   ];

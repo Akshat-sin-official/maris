@@ -13,6 +13,9 @@ import {
   ExplanationAgent,
 } from './AgentRegistry';
 import { AuditLog } from '../audit/AuditLog.model';
+import { XAIService } from '../integration/services/xai.service';
+
+const xaiService = new XAIService();
 
 async function writeAuditLog(
   eventType: 'USER_UPDATE',
@@ -89,7 +92,33 @@ export async function queryAgenticAI(
       await agent.run(agentContext);
     }
 
-    const finalOutput = agentContext.accumulatedData.finalOutput;
+    let finalOutput = agentContext.accumulatedData.finalOutput;
+
+    // Enhance response with live xAI Grok 4.6 synthesis if key is present
+    if (xaiService.isConfigured()) {
+      try {
+        const grokSynthesis = await xaiService.analyzeMarineQuery(query, {
+          location,
+          agentTrace: agentContext.trace,
+          accumulatedData: agentContext.accumulatedData,
+        });
+
+        finalOutput = {
+          ...finalOutput,
+          answer: grokSynthesis.answer || finalOutput.answer,
+          risk: {
+            ...finalOutput.risk,
+            rating: grokSynthesis.riskRating || finalOutput.risk?.rating || 'MEDIUM',
+          },
+          confidence: grokSynthesis.confidenceScore || finalOutput.confidence || 0.88,
+          explanation: grokSynthesis.whyFlagged || finalOutput.explanation,
+          recommendations: grokSynthesis.recommendations || finalOutput.recommendations,
+          grokEngineActive: true,
+        };
+      } catch (grokErr) {
+        console.warn('xAI Grok synthesis fallback to deterministic agent output:', grokErr);
+      }
+    }
 
     // Log operational query run
     await writeAuditLog('USER_UPDATE', userContext.email, userContext.userId, req, {

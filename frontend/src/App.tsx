@@ -31,6 +31,7 @@ import { PortalFieldPage } from './portal/pages/PortalFieldPage';
 import { PortalInvestigationsPage } from './portal/pages/PortalInvestigationsPage';
 import { PortalReportsPage } from './portal/pages/PortalReportsPage';
 import { PortalAdminPage } from './portal/pages/PortalAdminPage';
+import { PortalTipsterPage } from './portal/pages/PortalTipsterPage';
 
 export const App: React.FC = () => {
   return (
@@ -48,6 +49,7 @@ export const App: React.FC = () => {
           <Route path="alerts" element={<PortalAlertsPage />} />
           <Route path="field" element={<PortalFieldPage />} />
           <Route path="investigations" element={<PortalInvestigationsPage />} />
+          <Route path="tipster" element={<PortalTipsterPage />} />
           <Route path="reports" element={<PortalReportsPage />} />
           <Route path="admin" element={<PortalAdminPage />} />
         </Route>
