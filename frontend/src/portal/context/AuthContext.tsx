@@ -14,6 +14,7 @@ export interface UserProfile {
 
 interface AuthContextType {
   user: UserProfile | null;
+  token: string | null;
   isAuthenticated: boolean;
   simulatedMode: boolean;
   login: (email?: string, password?: string, role?: UserRole) => Promise<void>;
@@ -40,6 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return saved ? JSON.parse(saved) : null;
   });
 
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem('maris_jwt_token'));
   const [simulatedMode, setSimulatedMode] = useState<boolean>(false);
 
   useEffect(() => {
@@ -48,6 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       localStorage.removeItem('maris_auth_user');
       localStorage.removeItem('maris_jwt_token');
+      setToken(null);
     }
   }, [user]);
 
@@ -75,6 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (jwtToken) {
         localStorage.setItem('maris_jwt_token', jwtToken);
+        setToken(jwtToken);
       }
 
       const roleMapReverse: Record<string, UserRole> = {
@@ -122,6 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider
       value={{
         user,
+        token,
         isAuthenticated: !!user,
         simulatedMode,
         login,

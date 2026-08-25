@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Users, UserPlus, ShieldCheck, RefreshCw, CheckCircle2, AlertCircle, Lock, Edit3, Globe, Radio } from 'lucide-react';
+import { Settings, Users, UserPlus, ShieldCheck, RefreshCw, CheckCircle2, AlertCircle, Radio } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { PortalMapCanvas } from '../components/PortalMapCanvas';
 import { api } from '../services/api';
@@ -473,6 +473,17 @@ export const PortalAdminPage: React.FC = () => {
                   required
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.12)', fontSize: '0.9rem' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>ORGANIZATION</label>
+                <input
+                  type="text"
+                  value={newOrg}
+                  onChange={(e) => setNewOrg(e.target.value)}
+                  placeholder="MARIS Operational Command"
                   style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.12)', fontSize: '0.9rem' }}
                 />
               </div>

@@ -405,18 +405,102 @@ export const PortalTipsterPage: React.FC = () => {
       {/* TAB 2: SUBMIT TIP FORM */}
       {activeTab === 'submit' && (
         <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid rgba(0,0,0,0.08)', padding: '28px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+            <Send size={18} color="#000" />
+            <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', margin: 0 }}>
+              Submit Anonymous Coastal Tip
+            </h3>
+          </div>
           {submitResult ? (
             <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534' }}>
-              <h3>Tip Submitted: {submitResult.tipsterId}</h3>
-              <p>Genuineness Score: {submitResult.genuinenessScore}/100</p>
-              <button onClick={() => setSubmitResult(null)}>Submit Another</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <CheckCircle size={20} />
+                <h3 style={{ margin: 0 }}>Tip Submitted: {submitResult.tipsterId}</h3>
+              </div>
+              <p style={{ margin: '4px 0' }}>Genuineness Score: {submitResult.genuinenessScore}/100</p>
+              <button
+                onClick={() => setSubmitResult(null)}
+                style={{ marginTop: '12px', padding: '8px 16px', borderRadius: '8px', border: 'none', backgroundColor: '#166534', color: '#fff', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Submit Another
+              </button>
             </div>
           ) : (
             <form onSubmit={handleSubmitTip} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Incident title..." style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ddd' }} />
-              <textarea required rows={4} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description..." style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ddd' }} />
-              <button type="submit" disabled={isSubmitting} style={{ padding: '12px', backgroundColor: '#000', color: '#fff', borderRadius: '8px', border: 'none' }}>
-                Submit Tip
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>CATEGORY</label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.12)', fontSize: '0.9rem' }}
+                >
+                  <option value="SUSPICIOUS_VESSEL">SUSPICIOUS VESSEL</option>
+                  <option value="ILLEGAL_FISHING">ILLEGAL FISHING</option>
+                  <option value="OIL_POLLUTION">OIL POLLUTION / SPILL</option>
+                  <option value="CONTRABAND_SMUGGLING">CONTRABAND / SMUGGLING</option>
+                  <option value="DISTRESS_BEACON">DISTRESS BEACON</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>TITLE</label>
+                <input
+                  type="text"
+                  required
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Unidentified trawler near marine sanctuary..."
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.12)', fontSize: '0.9rem' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>DESCRIPTION & OBSERVATION DETAILS</label>
+                <textarea
+                  required
+                  rows={4}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Provide any visual details, hull markings, estimated heading, or crew activity..."
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.12)', fontSize: '0.9rem' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>LATITUDE</label>
+                  <input
+                    type="text"
+                    value={lat}
+                    onChange={(e) => setLat(e.target.value)}
+                    placeholder="9.28"
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.12)', fontSize: '0.9rem' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>LONGITUDE</label>
+                  <input
+                    type="text"
+                    value={lng}
+                    onChange={(e) => setLng(e.target.value)}
+                    placeholder="79.31"
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.12)', fontSize: '0.9rem' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: '#6b7280' }}>
+                <Lock size={14} />
+                <span>Encrypted telemetry & zero-PII anonymous hashing active.</span>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                style={{ padding: '12px 24px', backgroundColor: '#000', color: '#fff', borderRadius: '8px', border: 'none', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              >
+                <Send size={16} />
+                <span>{isSubmitting ? 'Submitting...' : 'Submit Coastal Tip'}</span>
               </button>
             </form>
           )}
@@ -426,14 +510,50 @@ export const PortalTipsterPage: React.FC = () => {
       {/* TAB 3: TRACK TIP LOOKUP */}
       {activeTab === 'track' && (
         <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid rgba(0,0,0,0.08)', padding: '28px' }}>
-          <form onSubmit={handleTrackLookup} style={{ display: 'flex', gap: '12px' }}>
-            <input type="text" required value={lookupId} onChange={(e) => setLookupId(e.target.value)} placeholder="Enter 10-digit Tipster ID..." style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #ddd' }} />
-            <button type="submit" style={{ padding: '12px 24px', backgroundColor: '#000', color: '#fff', borderRadius: '8px', border: 'none' }}>Track</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+            <Search size={18} color="#000" />
+            <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', margin: 0 }}>
+              Track Tip Status
+            </h3>
+          </div>
+          <form onSubmit={handleTrackLookup} style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+            <input
+              type="text"
+              required
+              value={lookupId}
+              onChange={(e) => setLookupId(e.target.value)}
+              placeholder="Enter 10-digit Tipster ID (e.g. MARIS-9382-7410)..."
+              style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '0.9rem' }}
+            />
+            <button
+              type="submit"
+              disabled={isSearching}
+              style={{ padding: '12px 24px', backgroundColor: '#000', color: '#fff', borderRadius: '8px', border: 'none', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              <Search size={16} />
+              <span>{isSearching ? 'Searching...' : 'Track'}</span>
+            </button>
           </form>
+
+          {searchError && (
+            <div style={{ padding: '14px 18px', borderRadius: '8px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Info size={16} />
+              <span>{searchError}</span>
+            </div>
+          )}
+
           {trackedRecord && (
-            <div style={{ marginTop: '20px', padding: '16px', borderRadius: '12px', backgroundColor: '#f8fafc' }}>
-              <h4>{trackedRecord.title}</h4>
-              <p>Status: {trackedRecord.status}</p>
+            <div style={{ marginTop: '16px', padding: '20px', borderRadius: '12px', backgroundColor: '#f8fafc', border: '1px solid rgba(0,0,0,0.08)' }}>
+              <h4 style={{ margin: '0 0 8px 0', fontSize: '1.1rem' }}>{trackedRecord.title}</h4>
+              <p style={{ margin: '4px 0', fontSize: '0.85rem', color: '#475569' }}>{trackedRecord.description}</p>
+              <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, padding: '4px 10px', borderRadius: '6px', backgroundColor: '#e2e8f0' }}>
+                  Status: {trackedRecord.status}
+                </span>
+                <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                  Updated: {new Date(trackedRecord.updatedAt || trackedRecord.createdAt).toLocaleString()}
+                </span>
+              </div>
             </div>
           )}
         </div>
