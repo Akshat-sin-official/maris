@@ -453,6 +453,7 @@ export const PortalLoginPage: React.FC = () => {
               {/* Submit Button */}
               <button
                 type="submit"
+                disabled={isLoggingIn}
                 onMouseEnter={() => setIsHoveredBtn(true)}
                 onMouseLeave={() => setIsHoveredBtn(false)}
                 style={{
@@ -469,14 +470,15 @@ export const PortalLoginPage: React.FC = () => {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  cursor: 'pointer',
+                  cursor: isLoggingIn ? 'not-allowed' : 'pointer',
+                  opacity: isLoggingIn ? 0.7 : 1,
                   marginTop: '8px',
                   transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
                   transform: isHoveredBtn ? 'translateY(-1px)' : 'none',
                   boxShadow: isHoveredBtn ? '0 8px 20px rgba(0, 0, 0, 0.12)' : '0 2px 8px rgba(0, 0, 0, 0.04)',
                 }}
               >
-                <span>Enter Operational Control Room</span>
+                <span>{isLoggingIn ? 'Authenticating...' : 'Enter Operational Control Room'}</span>
                 <ArrowRight size={16} />
               </button>
             </form>

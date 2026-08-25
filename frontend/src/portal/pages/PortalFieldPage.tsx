@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Radio, RefreshCw } from 'lucide-react';
-import { INITIAL_FIELD_OBSERVATIONS, type FieldObservation } from '../data/portalMockData';
+import { type FieldObservation } from '../data/portalMockData';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { EvidenceViewer } from '../components/EvidenceViewer';
@@ -8,7 +8,6 @@ import { EvidenceViewer } from '../components/EvidenceViewer';
 export const PortalFieldPage: React.FC = () => {
   const { simulatedMode } = useAuth();
   const [observations, setObservations] = useState<FieldObservation[]>([]);
-  const [selectedObs, setSelectedObs] = useState<FieldObservation | null>(null);
   const [obsEvidence, setObsEvidence] = useState<Record<string, any[]>>({});
 
   useEffect(() => {

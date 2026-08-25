@@ -252,3 +252,25 @@ export async function lookupByCoordinates(
   }
 }
 
+/**
+ * Retrieves live telemetry locations via BigData API
+ */
+export async function getLiveLocations(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userContext = req.user;
+    if (!userContext) {
+      throw new ForbiddenError('Access denied: authentication required');
+    }
+
+    const liveLocationsData = await IntelligenceService.getLiveLocations();
+    res.status(200).json(liveLocationsData);
+  } catch (error) {
+    next(error);
+  }
+}
+
+

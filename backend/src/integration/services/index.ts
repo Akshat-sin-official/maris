@@ -34,6 +34,7 @@ import { INCOISErddapProvider } from '../adapters/INCOISErddapProvider';
 import { CopernicusMarineProvider } from '../adapters/CopernicusMarineProvider';
 import { OverpassGeospatialProvider } from '../adapters/OverpassGeospatialProvider';
 import { WDPAGeospatialProvider } from '../adapters/WDPAGeospatialProvider';
+import { BigDataLocationProvider, LiveLocationBeacon, LocationGeocodeResult } from '../adapters/BigDataLocationProvider';
 import { Observation } from '../../observations/Observation.model';
 
 import { HistoricalMatch } from '../../intelligence/HistoricalMatch.model';
@@ -314,3 +315,51 @@ export const llmService = {
     }
   }
 };
+
+/**
+ * 10. BigData Location Intelligence Service
+ */
+const bigDataProvider = new BigDataLocationProvider();
+
+export const bigDataLocationService = {
+  getLiveLocations: async (
+    targetPoints?: Array<{ id: string; lat: number; lng: number; title?: string; category?: string }>
+  ): Promise<LiveLocationBeacon[]> => {
+    const key = `bigdata:live_beacons:${targetPoints ? targetPoints.length : 'default'}`;
+    const cached = cache.get(key);
+    if (cached) return cached;
+
+    try {
+      const beacons = await bigDataProvider.fetchLiveLocationBeacons(targetPoints);
+      if (beacons && beacons.length > 0) {
+        cache.set(key, beacons, 300000); // 5 minutes TTL
+      }
+      return beacons;
+    } catch (error) {
+      logger.warn('BigDataLocationService: Failed to retrieve live beacons', error);
+      return [];
+    }
+  },
+
+  reverseGeocode: async (lat: number, lon: number): Promise<LocationGeocodeResult | null> => {
+    const key = `bigdata:geocode:${lat.toFixed(4)}:${lon.toFixed(4)}`;
+    const cached = cache.get(key);
+    if (cached) return cached;
+
+    try {
+      const result = await bigDataProvider.reverseGeocode(lat, lon);
+      if (result) {
+        cache.set(key, result, 1800000); // 30 minutes TTL
+      }
+      return result;
+    } catch (error) {
+      logger.warn(`BigDataLocationService: Reverse geocode failed for [${lat}, ${lon}]`, error);
+      return null;
+    }
+  },
+
+  isConfigured: (): boolean => {
+    return bigDataProvider.hasApiKey();
+  }
+};
+

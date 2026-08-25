@@ -47,6 +47,12 @@ const envSchema = z.object({
   XAI_API_KEY: z.string().optional(),
   // Google Gemini API Key (Free API via Google AI Studio)
   GEMINI_API_KEY: z.string().optional(),
+  // BigDataCloud / BigData API Key
+  BIGDATA_API_KEY: z.string().optional(),
+  BIGDATACLOUD_API_KEY: z.string().optional(),
+  BIG_DATA_API_KEY: z.string().optional(),
+  BDC_API_KEY: z.string().optional(),
+  ENABLE_LIVE_BIGDATA: z.preprocess((val) => val === 'true' || val === true, z.boolean()).default(true),
 });
 
 const parsed = envSchema.safeParse(process.env);

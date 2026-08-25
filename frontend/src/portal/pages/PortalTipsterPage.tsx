@@ -4,19 +4,10 @@ import {
   Search,
   Send,
   Lock,
-  Eye,
   CheckCircle,
-  AlertTriangle,
-  FileText,
-  MapPin,
-  Camera,
   RefreshCw,
   Info,
-  ShieldCheck,
-  Smartphone,
-  Globe,
   ArrowRight,
-  UserCheck,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
@@ -167,7 +158,7 @@ export const PortalTipsterPage: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px', maxWidth: '1200px', margin: '0 auto' }}>
-      
+
       {/* Top Banner Header */}
       <div
         style={{

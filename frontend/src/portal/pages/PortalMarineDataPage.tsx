@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Activity, CloudRain, Wind, Thermometer } from 'lucide-react';
 import { api } from '../services/api';
-import { PROVIDER_HEALTH_LIST } from '../data/portalMockData';
 
 export const PortalMarineDataPage: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<'ALL' | 'OCEAN' | 'WEATHER' | 'SATELLITE'>('ALL');

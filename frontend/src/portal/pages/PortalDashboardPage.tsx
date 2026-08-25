@@ -9,7 +9,6 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { PortalMapCanvas } from '../components/PortalMapCanvas';
-import { INITIAL_ALERTS, INITIAL_FIELD_OBSERVATIONS } from '../data/portalMockData';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { socketService } from '../services/socket';
@@ -22,7 +21,7 @@ export const PortalDashboardPage: React.FC = () => {
   const [observationsList, setObservationsList] = useState<any[]>([]);
   const [tipsList, setTipsList] = useState<any[]>([]);
   const [pfzScore, setPfzScore] = useState<number>(92);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [_loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     const fetchLiveDashboardData = async () => {

@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { connectDatabase, disconnectDatabase } from './database';
 import { User } from '../users/User.model';
 import { Incident } from '../incidents/Incident.model';

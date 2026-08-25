@@ -22,7 +22,7 @@ interface AuthContextType {
   toggleSimulatedMode: () => void;
 }
 
-const DEFAULT_USER: UserProfile = {
+export const DEFAULT_USER: UserProfile = {
   id: 'usr-2026-001',
   name: 'Dr. Vikram Sarabhai',
   email: 'vikram.sarabhai@maris.gov.in',

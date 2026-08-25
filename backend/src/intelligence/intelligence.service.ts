@@ -1,4 +1,3 @@
-
 import { Incident } from '../incidents/Incident.model';
 import { Observation } from '../observations/Observation.model';
 import { Evidence } from '../evidence/Evidence.model';
@@ -11,6 +10,7 @@ import {
   geospatialService,
   pfzService,
   oceanService,
+  bigDataLocationService,
 } from '../integration/services';
 
 // Haversine formula to compute distance in km
@@ -372,6 +372,72 @@ export class IntelligenceService {
       logger.warn(`Coordinates Lookup: PFZ query failed for [${lat}, ${lng}]:`, error);
     }
 
+    // 5. Fetch BigData Geocoded Location Intelligence
+    try {
+      const locationInfo = await bigDataLocationService.reverseGeocode(lat, lng);
+      if (locationInfo) {
+        results.locationIntelligence = {
+          source: locationInfo.source,
+          retrievedAt: locationInfo.retrievedAt,
+          locality: locationInfo.locality,
+          city: locationInfo.city,
+          district: locationInfo.district || null,
+          waterBody: locationInfo.waterBody || null,
+          principalSubdivision: locationInfo.principalSubdivision,
+          countryName: locationInfo.countryName,
+          countryCode: locationInfo.countryCode,
+          plusCode: locationInfo.plusCode || null,
+        };
+      }
+    } catch (error) {
+      logger.warn(`Coordinates Lookup: BigData location lookup failed for [${lat}, ${lng}]:`, error);
+    }
+
     return results;
+  }
+
+  /**
+   * Retrieves active live location beacons from BigData API combined with active incidents
+   */
+  static async getLiveLocations(): Promise<{
+    source: string;
+    isConfigured: boolean;
+    timestamp: string;
+    count: number;
+    locations: any[];
+  }> {
+    const isConfigured = bigDataLocationService.isConfigured();
+    
+    // Fetch active incidents from database to enrich with BigData locations
+    const activeIncidents = await Incident.find({ status: { $ne: 'CLOSED' } }).limit(5);
+    const incidentPoints: Array<{ id: string; lat: number; lng: number; title?: string; category?: string }> = [];
+
+    for (const inc of activeIncidents) {
+      const loc = inc.items && inc.items[0]?.location;
+      if (loc && Array.isArray(loc.coordinates) && loc.coordinates.length === 2) {
+        const coords = loc.coordinates as unknown as number[];
+        if (typeof coords[0] === 'number' && typeof coords[1] === 'number') {
+          incidentPoints.push({
+            id: `inc-${inc._id}`,
+            lat: coords[1],
+            lng: coords[0],
+            title: inc.title || 'Marine Incident Sector',
+            category: 'INCIDENT_TELEMETRY',
+          });
+        }
+      }
+    }
+
+    const beacons = await bigDataLocationService.getLiveLocations(
+      incidentPoints.length > 0 ? incidentPoints : undefined
+    );
+
+    return {
+      source: 'BigData Location Intelligence',
+      isConfigured,
+      timestamp: new Date().toISOString(),
+      count: beacons.length,
+      locations: beacons,
+    };
   }
 }

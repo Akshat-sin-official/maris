@@ -9,13 +9,15 @@ import {
   Bot,
   Info,
   Fish,
-  Activity
+  Activity,
+  MapPin
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { socketService } from '../services/socket';
 
 interface MapLayersState {
+  liveLocations: boolean;
   incidents: boolean;
   observations: boolean;
   pfz: boolean;
@@ -58,11 +60,13 @@ export const PortalLiveMapPage: React.FC = () => {
   const mapRef = useRef<maplibregl.Map | null>(null);
 
   // Markers arrays to clear on redraw
+  const liveLocationMarkersRef = useRef<maplibregl.Marker[]>([]);
   const incidentMarkersRef = useRef<maplibregl.Marker[]>([]);
   const observationMarkersRef = useRef<maplibregl.Marker[]>([]);
 
   // Layer switches
   const [layers, setLayers] = useState<MapLayersState>({
+    liveLocations: true,
     incidents: true,
     observations: true,
     pfz: true,
@@ -72,6 +76,7 @@ export const PortalLiveMapPage: React.FC = () => {
 
   // Layer loading/error states
   const [loadingStates, setLoadingStates] = useState<Record<string, 'loading' | 'success' | 'error' | 'idle'>>({
+    liveLocations: 'idle',
     incidents: 'idle',
     observations: 'idle',
     pfz: 'idle',
@@ -79,6 +84,8 @@ export const PortalLiveMapPage: React.FC = () => {
     alerts: 'idle',
     lookup: 'idle',
   });
+
+  const [liveBeaconCount, setLiveBeaconCount] = useState<number>(0);
 
   // Location Inspector Sidebar
   const [selectedCoords, setSelectedCoords] = useState<[number, number] | null>(null);
@@ -116,14 +123,26 @@ export const PortalLiveMapPage: React.FC = () => {
     };
   }, []);
 
-  // Fetch metrics & draw markers based on simulatedMode or active layers
+  // Fetch metrics & draw markers based on active layers
   useEffect(() => {
     if (!mapRef.current) return;
 
+    drawLiveLocations();
     drawIncidents();
     drawObservations();
     drawGeometries();
-  }, [simulatedMode, layers.incidents, layers.observations, layers.pfz, layers.geofences, layers.alerts]);
+  }, [simulatedMode, layers.liveLocations, layers.incidents, layers.observations, layers.pfz, layers.geofences, layers.alerts]);
+
+  // Periodic refresh for live location beacons
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (layers.liveLocations && mapRef.current) {
+        drawLiveLocations();
+      }
+    }, 20000);
+
+    return () => clearInterval(interval);
+  }, [layers.liveLocations]);
 
   // Hook up Real-time Socket Updates
   useEffect(() => {
@@ -209,6 +228,111 @@ export const PortalLiveMapPage: React.FC = () => {
       console.error('Failed coordinates lookup', err);
       setLoadingStates(prev => ({ ...prev, lookup: 'error' }));
       setLocationIntelligence(null);
+    }
+  };
+
+  // Draw BigData Live Location Beacons with Red Blinking Heartbeat Animations
+  const drawLiveLocations = async () => {
+    liveLocationMarkersRef.current.forEach(m => m.remove());
+    liveLocationMarkersRef.current = [];
+
+    if (!layers.liveLocations || !mapRef.current) return;
+    setLoadingStates(prev => ({ ...prev, liveLocations: 'loading' }));
+
+    try {
+      const res = await api.get('/intelligence/live-locations');
+      const locations = Array.isArray(res?.locations) ? res.locations : [];
+      setLiveBeaconCount(locations.length);
+
+      locations.forEach((loc: any) => {
+        // Create custom HTML marker container
+        const el = document.createElement('div');
+        el.className = 'maris-heartbeat-marker';
+        el.style.cssText = `
+          position: relative;
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+        `;
+
+        // Outer heartbeat pulsating ripple 1
+        const ripple1 = document.createElement('div');
+        ripple1.style.cssText = `
+          position: absolute;
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          background-color: rgba(239, 68, 68, 0.45);
+          animation: marisHeartbeatRipple 1.8s infinite ease-out;
+        `;
+
+        // Outer heartbeat pulsating ripple 2
+        const ripple2 = document.createElement('div');
+        ripple2.style.cssText = `
+          position: absolute;
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          background-color: rgba(220, 38, 38, 0.25);
+          animation: marisHeartbeatRipple 1.8s infinite ease-out 0.35s;
+        `;
+
+        // Center red solid core
+        const dot = document.createElement('div');
+        dot.style.cssText = `
+          position: relative;
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          background-color: #ef4444;
+          border: 2px solid #ffffff;
+          box-shadow: 0 0 10px #ef4444, 0 0 20px rgba(239, 68, 68, 0.6);
+          animation: marisHeartbeatDot 1.8s infinite ease-in-out;
+        `;
+
+        el.appendChild(ripple1);
+        el.appendChild(ripple2);
+        el.appendChild(dot);
+
+        const popupContent = `
+          <div style="color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 0.8rem; padding: 6px; min-width: 200px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+              <span style="font-size: 0.65rem; font-weight: 700; background: #fee2e2; color: #dc2626; padding: 2px 6px; border-radius: 9999px;">
+                ● LIVE TELEMETRY
+              </span>
+              <span style="font-size: 0.65rem; color: #16a34a; font-weight: 600;">ACTIVE</span>
+            </div>
+            <div style="font-weight: 700; font-size: 0.92rem; color: #0f172a; margin-bottom: 4px;">
+              ${loc.title || 'Marine Telemetry Node'}
+            </div>
+            <div style="font-size: 0.76rem; color: #475569; line-height: 1.4; margin-bottom: 6px;">
+              <strong>Locality:</strong> ${loc.locality || 'Coastal Waters'}, ${loc.principalSubdivision || 'India'}<br/>
+              ${loc.metadata?.waterBody ? `<strong>Water Body:</strong> ${loc.metadata.waterBody}<br/>` : ''}
+              ${loc.metadata?.district ? `<strong>District:</strong> ${loc.metadata.district}<br/>` : ''}
+              <strong>Timestamp:</strong> ${new Date(loc.timestamp).toLocaleTimeString()}<br/>
+              <strong>Coordinates:</strong> [${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}]
+            </div>
+            <div style="font-size: 0.65rem; color: #0284c7; font-weight: 600; text-align: right; border-top: 1px solid #e2e8f0; padding-top: 4px;">
+              ${loc.source || 'BigData Location Intelligence'}
+            </div>
+          </div>
+        `;
+
+        const marker = new maplibregl.Marker({ element: el })
+          .setLngLat([loc.longitude, loc.latitude])
+          .setPopup(new maplibregl.Popup({ offset: 12 }).setHTML(popupContent))
+          .addTo(mapRef.current!);
+
+        liveLocationMarkersRef.current.push(marker);
+      });
+
+      setLoadingStates(prev => ({ ...prev, liveLocations: 'success' }));
+    } catch (err) {
+      console.warn('Failed to draw live location beacons:', err);
+      setLoadingStates(prev => ({ ...prev, liveLocations: 'error' }));
     }
   };
 
@@ -329,7 +453,7 @@ export const PortalLiveMapPage: React.FC = () => {
 
   // Draw layers geometry maps (PFZ, Geofences, Alerts)
   const drawGeometries = () => {
-    // Optional vector layers mapping can be implemented here directly in WebGL
+    // Optional vector layers mapping
   };
 
   // Near Me trigger
@@ -352,7 +476,6 @@ export const PortalLiveMapPage: React.FC = () => {
   const handleAskMaris = () => {
     if (!selectedCoords) return;
     const [lng, lat] = selectedCoords;
-    // Store coordinates in local state / navigation context
     navigate('/portal/ai', {
       state: {
         prefill: `Perform full marine safety audit near coordinates: [${lat.toFixed(4)}, ${lng.toFixed(4)}]. Is it safe for small craft operations tomorrow morning?`,
@@ -363,6 +486,20 @@ export const PortalLiveMapPage: React.FC = () => {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr', height: 'calc(100vh - 120px)', position: 'relative', overflow: 'hidden', fontFamily: 'monospace' }}>
       
+      {/* Heartbeat CSS Animations Injection */}
+      <style>{`
+        @keyframes marisHeartbeatRipple {
+          0% { transform: scale(0.6); opacity: 0.9; }
+          50% { transform: scale(1.6); opacity: 0.3; }
+          100% { transform: scale(2.2); opacity: 0; }
+        }
+        @keyframes marisHeartbeatDot {
+          0% { transform: scale(0.9); }
+          50% { transform: scale(1.18); }
+          100% { transform: scale(0.9); }
+        }
+      `}</style>
+
       {/* GIS Canvas Container */}
       <div ref={mapContainerRef} style={{ width: '100%', height: '100%', backgroundColor: '#090d16' }} />
 
@@ -371,7 +508,7 @@ export const PortalLiveMapPage: React.FC = () => {
         position: 'absolute',
         top: '20px',
         left: '20px',
-        width: '280px',
+        width: '290px',
         backgroundColor: 'rgba(9, 13, 22, 0.95)',
         border: '1px solid rgba(0, 242, 254, 0.15)',
         borderRadius: '12px',
@@ -383,15 +520,23 @@ export const PortalLiveMapPage: React.FC = () => {
         flexDirection: 'column',
         gap: '16px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '8px' }}>
-          <Layers size={18} className="text-cyan-400" />
-          <span style={{ fontWeight: 800, fontSize: '0.85rem', letterSpacing: '0.05em' }}>MAP LAYER MANAGER</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Layers size={18} className="text-cyan-400" />
+            <span style={{ fontWeight: 800, fontSize: '0.85rem', letterSpacing: '0.05em' }}>MAP LAYER MANAGER</span>
+          </div>
+          {liveBeaconCount > 0 && (
+            <span style={{ fontSize: '0.68rem', backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.4)', borderRadius: '9999px', padding: '2px 6px', fontWeight: 700 }}>
+              {liveBeaconCount} LIVE
+            </span>
+          )}
         </div>
 
         {/* Toggles */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {Object.keys(layers).map((key) => {
             const layerKey = key as keyof MapLayersState;
+            const isLive = layerKey === 'liveLocations';
             return (
               <label key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', fontSize: '0.8rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -399,9 +544,11 @@ export const PortalLiveMapPage: React.FC = () => {
                     type="checkbox"
                     checked={layers[layerKey]}
                     onChange={() => setLayers(prev => ({ ...prev, [layerKey]: !prev[layerKey] }))}
-                    style={{ accentColor: '#00f2fe' }}
+                    style={{ accentColor: isLive ? '#ef4444' : '#00f2fe' }}
                   />
-                  <span style={{ textTransform: 'capitalize' }}>{key}</span>
+                  <span style={{ color: isLive ? '#f87171' : '#fff', fontWeight: isLive ? 700 : 400 }}>
+                    {isLive ? '🔴 Live BigData Beacons' : key.charAt(0).toUpperCase() + key.slice(1)}
+                  </span>
                 </div>
                 <span style={{ fontSize: '0.68rem', opacity: 0.5 }}>
                   {loadingStates[key] === 'loading' ? 'Loading...' : 'Active'}
@@ -415,6 +562,12 @@ export const PortalLiveMapPage: React.FC = () => {
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px' }}>
           <span style={{ fontSize: '0.75rem', fontWeight: 700, opacity: 0.7, display: 'block', marginBottom: '8px' }}>LEGEND</span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.72rem' }}>
+            {layers.liveLocations && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444', border: '1.5px solid #fff', boxShadow: '0 0 6px #ef4444' }} />
+                <span style={{ color: '#f87171', fontWeight: 700 }}>Live Telemetry (Heartbeat)</span>
+              </div>
+            )}
             {layers.incidents && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff0055' }} />
@@ -496,6 +649,29 @@ export const PortalLiveMapPage: React.FC = () => {
                 <div style={{ opacity: 0.6 }}>Loading Marine Intelligence...</div>
               ) : locationIntelligence ? (
                 <>
+                  {/* BigData Reverse Geocoded Location Intelligence */}
+                  {locationIntelligence.locationIntelligence && (
+                    <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', color: '#f87171' }}>
+                        <MapPin size={14} />
+                        <span style={{ fontWeight: 700 }}>GEOGRAPHIC INTELLIGENCE (BigData)</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', opacity: 0.9, backgroundColor: 'rgba(239,68,68,0.05)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.15)' }}>
+                        <div><strong>Locality:</strong> {locationIntelligence.locationIntelligence.locality || 'Coastal Sector'}</div>
+                        <div><strong>Region:</strong> {locationIntelligence.locationIntelligence.principalSubdivision}, {locationIntelligence.locationIntelligence.countryName}</div>
+                        {locationIntelligence.locationIntelligence.waterBody && (
+                          <div><strong>Water Body:</strong> {locationIntelligence.locationIntelligence.waterBody}</div>
+                        )}
+                        {locationIntelligence.locationIntelligence.district && (
+                          <div><strong>District:</strong> {locationIntelligence.locationIntelligence.district}</div>
+                        )}
+                        {locationIntelligence.locationIntelligence.plusCode && (
+                          <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>Plus Code: {locationIntelligence.locationIntelligence.plusCode}</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Marine Conditions */}
                   <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', color: '#00f2fe' }}>
@@ -506,7 +682,7 @@ export const PortalLiveMapPage: React.FC = () => {
                       <div>SST / Water Temp: {locationIntelligence.marineConditions?.waterTemp !== null ? `${locationIntelligence.marineConditions.waterTemp} °C` : 'Not available'}</div>
                       <div>Wave Height: {locationIntelligence.marineConditions?.waveHeight !== null ? `${locationIntelligence.marineConditions.waveHeight} m` : 'Not available'}</div>
                       <div>Wave Period: {locationIntelligence.marineConditions?.wavePeriod !== null ? `${locationIntelligence.marineConditions.wavePeriod} s` : 'Not available'}</div>
-                      <div>Current Speed: {locationIntelligence.marineConditions?.currentSpeed !== null ? `${locationIntelligence.marineIntelligence?.marineConditions?.currentSpeed ?? locationIntelligence.marineConditions.currentSpeed} m/s` : 'Not available'}</div>
+                      <div>Current Speed: {locationIntelligence.marineConditions?.currentSpeed !== null ? `${locationIntelligence.marineConditions.currentSpeed} m/s` : 'Not available'}</div>
                       <div>Source: {locationIntelligence.marineConditions?.source || 'Not available'}</div>
                     </div>
                   </div>

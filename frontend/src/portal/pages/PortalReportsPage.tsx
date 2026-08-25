@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Download, Printer, CheckCircle2, Plus, Filter, RefreshCw, Layers } from 'lucide-react';
+import { FileText, Download, Printer, CheckCircle2, RefreshCw } from 'lucide-react';
 import { api } from '../services/api';
 
 interface ReportItem {

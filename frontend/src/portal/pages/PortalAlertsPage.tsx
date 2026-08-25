@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Clock, MapPin, Wind, Thermometer, Waves, Shield, Eye, X, CheckCircle2, Navigation, Send, Radio } from 'lucide-react';
+import { AlertTriangle, Clock, MapPin, Wind, Thermometer, Waves, Shield, Eye, X, CheckCircle2, Send } from 'lucide-react';
 import { PortalMapCanvas } from '../components/PortalMapCanvas';
 import { api } from '../services/api';
 
@@ -366,7 +366,7 @@ export const PortalAlertsPage: React.FC = () => {
                 <div
                   style={{
                     display: 'flex',
-                    justify: 'space-between',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
                     borderTop: '1px solid rgba(0,0,0,0.06)',
                     paddingTop: '14px',
@@ -585,9 +585,8 @@ export const PortalAlertsPage: React.FC = () => {
               </div>
               <div style={{ height: '320px', borderRadius: '14px', overflow: 'hidden', border: '1px solid rgba(0,0,0,0.1)' }}>
                 <PortalMapCanvas
-                  center={[selectedItem.coordinates[1], selectedItem.coordinates[0]]}
-                  zoom={11}
-                  activeLayers={['incidents', 'sanctuary']}
+                  height="320px"
+                  initialLayers={{ liveLocations: true, alerts: true, pfz: true }}
                 />
               </div>
             </div>

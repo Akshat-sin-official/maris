@@ -3,14 +3,14 @@ import jwt from 'jsonwebtoken';
 import { app } from '../../src/app';
 import { User } from '../../src/users/User.model';
 import { RefreshToken } from '../../src/auth/RefreshToken.model';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 // Mock mongoose models and bcrypt
 jest.mock('../../src/users/User.model');
 jest.mock('../../src/organizations/Organization.model');
 jest.mock('../../src/auth/RefreshToken.model');
 jest.mock('../../src/audit/AuditLog.model');
-jest.mock('bcrypt');
+jest.mock('bcryptjs');
 
 describe('Auth & Authorization Integration Tests', () => {
   const mockOrgId = '660d3d5d787be21a48c56c22';

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldAlert } from 'lucide-react';
-import { INITIAL_INVESTIGATIONS, type InvestigationCase } from '../data/portalMockData';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { EvidenceViewer } from '../components/EvidenceViewer';
 
 export const PortalInvestigationsPage: React.FC = () => {
+  const { simulatedMode } = useAuth();
   const [casesList, setCasesList] = useState<any[]>([]);
   const [activeCase, setActiveCase] = useState<any>(null);
   const [evidenceList, setEvidenceList] = useState<any[]>([]);
@@ -202,7 +202,7 @@ export const PortalInvestigationsPage: React.FC = () => {
               AI MULTI-FACTOR RISK ATTRIBUTION
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {activeCase.riskAttribution.map((r, idx) => (
+              {activeCase.riskAttribution.map((r: any, idx: number) => (
                 <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.82rem' }}>
                   <span>{r.factor}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -244,7 +244,7 @@ export const PortalInvestigationsPage: React.FC = () => {
               CHRONOLOGICAL EVIDENCE TIMELINE
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {activeCase.evidenceTimeline.map((ev) => (
+              {activeCase.evidenceTimeline.map((ev: any) => (
                 <div
                   key={ev.id}
                   style={{

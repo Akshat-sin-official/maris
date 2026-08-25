@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Layers, ZoomIn, ZoomOut } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Layers, ZoomIn, ZoomOut, Radio } from 'lucide-react';
 import { INITIAL_ALERTS, INITIAL_PFZ_BULLETINS, INITIAL_FIELD_OBSERVATIONS } from '../data/portalMockData';
+import { api } from '../services/api';
 
 interface MapLayerState {
   sst: boolean;
@@ -10,6 +11,7 @@ interface MapLayerState {
   alerts: boolean;
   fieldObs: boolean;
   geofence: boolean;
+  liveLocations: boolean;
 }
 
 interface PortalMapCanvasProps {
@@ -31,12 +33,49 @@ export const PortalMapCanvas: React.FC<PortalMapCanvasProps> = ({
     alerts: true,
     fieldObs: true,
     geofence: true,
+    liveLocations: true,
     ...initialLayers,
   });
 
+  const [liveBeacons, setLiveBeacons] = useState<any[]>([]);
+  const [loadingBeacons, setLoadingBeacons] = useState<boolean>(false);
   const [activeFeature, setActiveFeature] = useState<any>(null);
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(100);
+
+  // Poll live location data from backend (BigData API)
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchLiveLocations = async () => {
+      try {
+        setLoadingBeacons(true);
+        const data = await api.get('/intelligence/live-locations');
+        if (isMounted && data && Array.isArray(data.locations)) {
+          // Filter out stale locations if older than 30 minutes
+          const now = Date.now();
+          const freshLocations = data.locations.filter((loc: any) => {
+            if (!loc.timestamp) return true;
+            const diffMin = (now - new Date(loc.timestamp).getTime()) / 60000;
+            return diffMin <= 30;
+          });
+          setLiveBeacons(freshLocations);
+        }
+      } catch (err) {
+        console.warn('BigData Live Locations fetch notice:', err);
+      } finally {
+        if (isMounted) setLoadingBeacons(false);
+      }
+    };
+
+    fetchLiveLocations();
+    const interval = setInterval(fetchLiveLocations, 20000); // 20-second dynamic refresh
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   const toggleLayer = (key: keyof MapLayerState) => {
     setLayers((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -231,6 +270,59 @@ export const PortalMapCanvas: React.FC<PortalMapCanvasProps> = ({
                 </g>
               );
             })}
+
+          {/* LAYER 8: BigData Live Location Beacons (Red markers with heartbeat animation) */}
+          {layers.liveLocations &&
+            liveBeacons.map((beacon) => {
+              const cx = 340 + (beacon.longitude - 78.5) * 115;
+              const cy = 390 - (beacon.latitude - 8.5) * 105;
+
+              return (
+                <g
+                  key={beacon.id}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => {
+                    setActiveFeature({ type: 'LIVE_BEACON', data: beacon });
+                    if (onSelectFeature) onSelectFeature(beacon);
+                  }}
+                >
+                  {/* Outer Heartbeat Pulse Wave 1 */}
+                  <circle cx={cx} cy={cy} r="18" fill="#ef4444" opacity="0.45">
+                    <animate attributeName="r" values="8;28;8" dur="1.8s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.8;0;0.8" dur="1.8s" repeatCount="indefinite" />
+                  </circle>
+
+                  {/* Outer Heartbeat Pulse Wave 2 */}
+                  <circle cx={cx} cy={cy} r="32" fill="#dc2626" opacity="0.22">
+                    <animate attributeName="r" values="14;42;14" dur="1.8s" begin="0.35s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.55;0;0.55" dur="1.8s" begin="0.35s" repeatCount="indefinite" />
+                  </circle>
+
+                  {/* Inner Solid Red Heartbeat Node */}
+                  <circle cx={cx} cy={cy} r="7.5" fill="#ef4444" stroke="#ffffff" strokeWidth="2.5">
+                    <animate attributeName="r" values="6.5;9;6.5" dur="1.8s" repeatCount="indefinite" />
+                  </circle>
+
+                  {/* Beacon Label Badge */}
+                  <g>
+                    <rect
+                      x={cx + 12}
+                      y={cy - 10}
+                      width={Math.max((beacon.locality || beacon.title).length * 6.5 + 14, 80)}
+                      height="20"
+                      rx="5"
+                      fill="rgba(15, 23, 42, 0.9)"
+                      stroke="#ef4444"
+                      strokeWidth="1.2"
+                    />
+                    <circle cx={cx + 19} cy={cy} r="3" fill="#ef4444" />
+                    <text x={cx + 26} y={cy + 3.5} fill="#ffffff" fontSize="9.5" fontWeight="600" fontFamily="var(--font-heading)">
+                      {beacon.locality || beacon.title}
+                    </text>
+                  </g>
+                </g>
+              );
+            })}
         </svg>
       </div>
 
@@ -267,6 +359,7 @@ export const PortalMapCanvas: React.FC<PortalMapCanvasProps> = ({
           >
             <Layers size={16} />
             <span>Map Layers</span>
+            {loadingBeacons && <Radio size={12} className="animate-spin text-red-500" />}
           </button>
 
           {layerMenuOpen && (
@@ -275,7 +368,7 @@ export const PortalMapCanvas: React.FC<PortalMapCanvasProps> = ({
                 position: 'absolute',
                 top: 'calc(100% + 6px)',
                 right: 0,
-                width: '220px',
+                width: '240px',
                 backgroundColor: '#ffffff',
                 border: '1px solid rgba(0,0,0,0.1)',
                 borderRadius: '12px',
@@ -288,13 +381,14 @@ export const PortalMapCanvas: React.FC<PortalMapCanvasProps> = ({
                 TOGGLE VECTOR & RASTER LAYERS
               </div>
               {[
+                { key: 'liveLocations', label: '🔴 Live BigData Beacons' },
                 { key: 'sst', label: 'SST Thermal Heatmap' },
-                { key: 'chlorophyll', label: 'Chlorophyll-a Concentration' },
+                { key: 'chlorophyll', label: 'Chlorophyll-a Front' },
                 { key: 'waves', label: 'Wave Swell Grid' },
                 { key: 'pfz', label: 'PFZ Advisory Zones' },
                 { key: 'alerts', label: 'Hazard & Cyclone Alerts' },
                 { key: 'fieldObs', label: 'Field Observations' },
-                { key: 'geofence', label: 'Protected Sanctuary Bounds' },
+                { key: 'geofence', label: 'Protected Sanctuary' },
               ].map(({ key, label }) => (
                 <label
                   key={key}
@@ -307,7 +401,9 @@ export const PortalMapCanvas: React.FC<PortalMapCanvasProps> = ({
                     cursor: 'pointer',
                   }}
                 >
-                  <span>{label}</span>
+                  <span style={{ fontWeight: key === 'liveLocations' ? 600 : 400, color: key === 'liveLocations' ? '#dc2626' : '#000' }}>
+                    {label}
+                  </span>
                   <input
                     type="checkbox"
                     checked={layers[key as keyof MapLayerState]}
@@ -342,10 +438,10 @@ export const PortalMapCanvas: React.FC<PortalMapCanvasProps> = ({
           position: 'absolute',
           bottom: '16px',
           left: '16px',
-          padding: '10px 14px',
+          padding: '10px 16px',
           borderRadius: '10px',
           border: '1px solid rgba(0,0,0,0.1)',
-          backgroundColor: 'rgba(255, 255, 255, 0.92)',
+          backgroundColor: 'rgba(255, 255, 255, 0.94)',
           backdropFilter: 'blur(8px)',
           display: 'flex',
           alignItems: 'center',
@@ -356,16 +452,20 @@ export const PortalMapCanvas: React.FC<PortalMapCanvasProps> = ({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#ef4444', border: '2px solid #ffffff', boxShadow: '0 0 8px #ef4444', display: 'inline-block' }} />
+          <span style={{ fontWeight: 600, color: '#dc2626' }}>Live Beacon (BigData)</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#10b981', display: 'inline-block' }} />
           <span>PFZ Zone</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#ef4444', display: 'inline-block' }} />
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#f59e0b', display: 'inline-block' }} />
           <span>Hazard Alert</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: '#000000', display: 'inline-block' }} />
-          <span>Field Observation</span>
+          <span>Field Obs</span>
         </div>
       </div>
 
@@ -376,47 +476,97 @@ export const PortalMapCanvas: React.FC<PortalMapCanvasProps> = ({
             position: 'absolute',
             bottom: '16px',
             right: '16px',
-            width: '320px',
+            width: '340px',
             backgroundColor: '#ffffff',
             border: '1px solid rgba(0,0,0,0.12)',
             borderRadius: '14px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
-            padding: '16px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.18)',
+            padding: '18px',
             zIndex: 30,
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
             <span
               style={{
-                fontSize: '0.65rem',
+                fontSize: '0.68rem',
                 fontWeight: 700,
-                padding: '2px 8px',
+                padding: '3px 10px',
                 borderRadius: '9999px',
-                backgroundColor: activeFeature.type === 'ALERT' ? '#fee2e2' : '#dcfce7',
-                color: activeFeature.type === 'ALERT' ? '#dc2626' : '#15803d',
+                backgroundColor:
+                  activeFeature.type === 'LIVE_BEACON'
+                    ? '#fee2e2'
+                    : activeFeature.type === 'ALERT'
+                    ? '#fef3c7'
+                    : '#dcfce7',
+                color:
+                  activeFeature.type === 'LIVE_BEACON'
+                    ? '#dc2626'
+                    : activeFeature.type === 'ALERT'
+                    ? '#d97706'
+                    : '#15803d',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
               }}
             >
-              {activeFeature.type}
+              {activeFeature.type === 'LIVE_BEACON' && <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#dc2626', display: 'inline-block' }} />}
+              {activeFeature.type === 'LIVE_BEACON' ? 'LIVE TELEMETRY BEACON' : activeFeature.type}
             </span>
             <button
               onClick={() => setActiveFeature(null)}
-              style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '1rem', color: 'rgba(0,0,0,0.4)' }}
+              style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '1.2rem', color: 'rgba(0,0,0,0.4)', lineHeight: 1 }}
             >
               ×
             </button>
           </div>
 
-          <h4 style={{ margin: '0 0 6px', fontSize: '0.92rem', fontFamily: 'var(--font-heading)' }}>
+          <h4 style={{ margin: '0 0 6px', fontSize: '1rem', fontFamily: 'var(--font-heading)', color: '#0f172a' }}>
             {activeFeature.data.title || activeFeature.data.zoneName}
           </h4>
 
-          <p style={{ margin: '0 0 10px', fontSize: '0.78rem', color: 'rgba(0,0,0,0.65)', lineHeight: 1.4 }}>
-            {activeFeature.data.description || activeFeature.data.notes || `SST: ${activeFeature.data.sstCelsius}°C | Potential Score: ${activeFeature.data.potentialScore}/100`}
-          </p>
+          {activeFeature.type === 'LIVE_BEACON' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+              <div style={{ fontSize: '0.82rem', color: '#334155', lineHeight: 1.4 }}>
+                <strong>Locality:</strong> {activeFeature.data.locality}, {activeFeature.data.principalSubdivision}
+                {activeFeature.data.metadata?.waterBody && (
+                  <div><strong>Water Body:</strong> {activeFeature.data.metadata.waterBody}</div>
+                )}
+                {activeFeature.data.metadata?.district && (
+                  <div><strong>District:</strong> {activeFeature.data.metadata.district}</div>
+                )}
+              </div>
 
-          <div style={{ fontSize: '0.72rem', color: 'rgba(0,0,0,0.5)' }}>
-            Coordinates: [{activeFeature.data.coordinates[0]}, {activeFeature.data.coordinates[1]}]
-          </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.72rem', backgroundColor: '#f8fafc', padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div>
+                  <span style={{ color: '#64748b' }}>Status:</span>{' '}
+                  <strong style={{ color: '#16a34a' }}>{activeFeature.data.status || 'ACTIVE'}</strong>
+                </div>
+                <div>
+                  <span style={{ color: '#64748b' }}>Freshness:</span>{' '}
+                  <strong>LIVE (Heartbeat)</strong>
+                </div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <span style={{ color: '#64748b' }}>Timestamp:</span>{' '}
+                  <span>{new Date(activeFeature.data.timestamp).toLocaleString()}</span>
+                </div>
+              </div>
+
+              <div style={{ fontSize: '0.72rem', color: '#64748b', display: 'flex', justifyContent: 'space-between' }}>
+                <span>Lat/Lng: [{activeFeature.data.latitude.toFixed(4)}, {activeFeature.data.longitude.toFixed(4)}]</span>
+                <span style={{ fontWeight: 600, color: '#0284c7' }}>{activeFeature.data.source}</span>
+              </div>
+            </div>
+          ) : (
+            <>
+              <p style={{ margin: '0 0 10px', fontSize: '0.78rem', color: 'rgba(0,0,0,0.65)', lineHeight: 1.4 }}>
+                {activeFeature.data.description || activeFeature.data.notes || `SST: ${activeFeature.data.sstCelsius}°C | Potential Score: ${activeFeature.data.potentialScore}/100`}
+              </p>
+
+              <div style={{ fontSize: '0.72rem', color: 'rgba(0,0,0,0.5)' }}>
+                Coordinates: [{activeFeature.data.coordinates[0]}, {activeFeature.data.coordinates[1]}]
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

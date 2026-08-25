@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Fish } from 'lucide-react';
-import { INITIAL_PFZ_BULLETINS, type PfzBulletin } from '../data/portalMockData';
+import { type PfzBulletin } from '../data/portalMockData';
 import { PortalMapCanvas } from '../components/PortalMapCanvas';
-import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 
 export const PortalPfzPage: React.FC = () => {

@@ -1,19 +1,10 @@
 import React, { useState } from 'react';
 import {
-  ShieldAlert,
   Search,
   Send,
-  Lock,
-  Eye,
   CheckCircle2,
-  AlertTriangle,
-  FileText,
-  MapPin,
   RefreshCw,
-  Info,
   ShieldCheck,
-  Smartphone,
-  Globe,
 } from 'lucide-react';
 import { api } from '../portal/services/api';
 
