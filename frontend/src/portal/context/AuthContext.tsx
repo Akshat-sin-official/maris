@@ -42,7 +42,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('maris_jwt_token'));
-  const [simulatedMode, setSimulatedMode] = useState<boolean>(false);
+  const [simulatedMode, setSimulatedMode] = useState<boolean>(() => {
+    return localStorage.getItem('maris_simulated_mode') === 'true';
+  });
 
   useEffect(() => {
     if (user) {
@@ -56,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email?: string, password?: string, role: UserRole = 'Control Room Operator') => {
     try {
-      const res = await fetch('http://localhost:3000/api/v1/auth/login', {
+      const res = await fetch('/api/v1/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -118,9 +120,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const toggleSimulatedMode = () => {
-    setSimulatedMode(prev => !prev);
+    setSimulatedMode((prev) => {
+      const next = !prev;
+      localStorage.setItem('maris_simulated_mode', next ? 'true' : 'false');
+      window.dispatchEvent(new CustomEvent('maris:simulated_mode_changed', { detail: next }));
+      return next;
+    });
   };
-
 
   return (
     <AuthContext.Provider

@@ -44,9 +44,18 @@ export const PortalAlertsPage: React.FC = () => {
 
       const mappedAlerts: ExtendedAlertItem[] = [];
 
+      const extractArray = (res: any, key?: string): any[] => {
+        if (!res) return [];
+        if (Array.isArray(res)) return res;
+        if (key && Array.isArray(res.data?.[key])) return res.data[key];
+        if (Array.isArray(res.data)) return res.data;
+        if (key && Array.isArray(res[key])) return res[key];
+        return [];
+      };
+
       // 1. Incidents from MongoDB
       if (incRes.status === 'fulfilled') {
-        const incidents = Array.isArray(incRes.value) ? incRes.value : incRes.value.data || [];
+        const incidents = extractArray(incRes.value, 'incidents');
         incidents.forEach((inc: any) => {
           mappedAlerts.push({
             id: inc.id || inc._id,
@@ -69,7 +78,7 @@ export const PortalAlertsPage: React.FC = () => {
 
       // 2. Tips from MongoDB
       if (tipsRes.status === 'fulfilled') {
-        const tips = Array.isArray(tipsRes.value) ? tipsRes.value : tipsRes.value.data || [];
+        const tips = extractArray(tipsRes.value, 'tips');
         tips.forEach((tip: any) => {
           mappedAlerts.push({
             id: tip.tipsterId || tip.id || tip._id,
@@ -96,7 +105,7 @@ export const PortalAlertsPage: React.FC = () => {
 
       // 3. Observations from MongoDB
       if (obsRes.status === 'fulfilled') {
-        const obs = Array.isArray(obsRes.value) ? obsRes.value : obsRes.value.data || [];
+        const obs = extractArray(obsRes.value, 'observations');
         obs.forEach((o: any) => {
           mappedAlerts.push({
             id: o.id || o._id,
@@ -147,6 +156,9 @@ export const PortalAlertsPage: React.FC = () => {
 
   useEffect(() => {
     fetchLiveAlerts();
+    const handleModeChange = () => fetchLiveAlerts();
+    window.addEventListener('maris:simulated_mode_changed', handleModeChange);
+    return () => window.removeEventListener('maris:simulated_mode_changed', handleModeChange);
   }, []);
 
   // Fetch live intelligence for selected item location
@@ -195,7 +207,7 @@ export const PortalAlertsPage: React.FC = () => {
     }
   };
 
-  const filteredAlerts = alertsList.filter((a) => {
+  const filteredAlerts = (Array.isArray(alertsList) ? alertsList : []).filter((a) => {
     if (severityFilter === 'ALL') return true;
     return a.severity === severityFilter;
   });

@@ -34,19 +34,25 @@ export const PortalDashboardPage: React.FC = () => {
           api.get('/intelligence/lookup?lat=9.28&lng=79.31'),
         ]);
 
+        const extractArray = (res: any, key?: string): any[] => {
+          if (!res) return [];
+          if (Array.isArray(res)) return res;
+          if (key && Array.isArray(res.data?.[key])) return res.data[key];
+          if (Array.isArray(res.data)) return res.data;
+          if (key && Array.isArray(res[key])) return res[key];
+          return [];
+        };
+
         if (incRes.status === 'fulfilled') {
-          const incData = Array.isArray(incRes.value) ? incRes.value : incRes.value.data || [];
-          setIncidentsList(incData);
+          setIncidentsList(extractArray(incRes.value, 'incidents'));
         }
 
         if (obsRes.status === 'fulfilled') {
-          const obsData = Array.isArray(obsRes.value) ? obsRes.value : obsRes.value.data || [];
-          setObservationsList(obsData);
+          setObservationsList(extractArray(obsRes.value, 'observations'));
         }
 
         if (tipsRes.status === 'fulfilled') {
-          const tipsData = Array.isArray(tipsRes.value) ? tipsRes.value : tipsRes.value.data || [];
-          setTipsList(tipsData);
+          setTipsList(extractArray(tipsRes.value, 'tips'));
         }
 
         if (intelRes.status === 'fulfilled' && intelRes.value?.pfz) {
@@ -74,12 +80,20 @@ export const PortalDashboardPage: React.FC = () => {
     };
 
     socketService.addListener(handleRealtimeUpdate);
+
+    const handleSimulatedModeChange = () => {
+      fetchLiveDashboardData();
+    };
+
+    window.addEventListener('maris:simulated_mode_changed', handleSimulatedModeChange);
+
     return () => {
       socketService.removeListener(handleRealtimeUpdate);
+      window.removeEventListener('maris:simulated_mode_changed', handleSimulatedModeChange);
     };
   }, []);
 
-  const activeAlerts = incidentsList.filter((inc) => inc.status !== 'CLOSED');
+  const activeAlerts = Array.isArray(incidentsList) ? incidentsList.filter((inc) => inc && inc.status !== 'CLOSED') : [];
 
   // Role-specific metric configurations
   const getMetricsForRole = () => {

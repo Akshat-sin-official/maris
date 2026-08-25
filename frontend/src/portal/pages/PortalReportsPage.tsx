@@ -291,7 +291,7 @@ export const PortalReportsPage: React.FC = () => {
                 boxShadow: '0 2px 10px rgba(0,0,0,0.02)',
                 display: 'flex',
                 flexDirection: 'column',
-                justify: 'space-between',
+                justifyContent: 'space-between',
                 gap: '16px',
               }}
             >
