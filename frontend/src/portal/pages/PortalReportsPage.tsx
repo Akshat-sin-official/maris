@@ -1,456 +1,494 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Download, Printer, CheckCircle2, RefreshCw } from 'lucide-react';
+import { FileText, Download, Printer, Plus, RefreshCw, Eye, Edit, Send, CheckCircle2, Globe, Sparkles } from 'lucide-react';
 import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
-interface ReportItem {
-  id: string;
+export interface ResearchReport {
+  _id?: string;
+  id?: string;
+  reportId: string;
   title: string;
-  type: 'INCIDENTS' | 'FIELD' | 'TIPS' | 'PFZ';
-  date: string;
-  recordCount: number;
-  summary: string;
-  status: 'GENERATED' | 'LIVE_UPDATED';
-  rawPayload: any[];
+  category: 'BIODIVERSITY_ASSESSMENT' | 'PFZ_ADVISORY' | 'SPECIES_MIGRATION' | 'POLLUTION_DRIFT' | 'ILLEGAL_TRAWLING' | 'CLIMATE_IMPACT';
+  author: string;
+  abstract: string;
+  content: string;
+  region: string;
+  status: 'DRAFT' | 'UNDER_REVIEW' | 'PUBLISHED' | 'ARCHIVED';
+  tags: string[];
+  downloadsCount: number;
+  publishedAt?: string;
+  createdAt: string;
 }
 
 export const PortalReportsPage: React.FC = () => {
-  const [exportNotice, setExportNotice] = useState<string | null>(null);
-  const [reports, setReports] = useState<ReportItem[]>([]);
-  const [filterType, setFilterType] = useState<string>('ALL');
-  const [isGenerating, setIsGenerating] = useState(false);
+  const { user } = useAuth();
+  const [reportsList, setReportsList] = useState<ResearchReport[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<'ALL' | 'DRAFT' | 'PUBLISHED'>('ALL');
 
-  const fetchLiveReports = async () => {
-    setIsGenerating(true);
+  // Modals State
+  const [showAuthorModal, setShowAuthorModal] = useState<boolean>(false);
+  const [showViewModal, setShowViewModal] = useState<ResearchReport | null>(null);
+  const [editingReport, setEditingReport] = useState<ResearchReport | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // Author Form Fields
+  const [formTitle, setFormTitle] = useState('');
+  const [formCategory, setFormCategory] = useState<string>('BIODIVERSITY_ASSESSMENT');
+  const [formRegion, setFormRegion] = useState('Gulf of Mannar Sector B4');
+  const [formAbstract, setFormAbstract] = useState('');
+  const [formContent, setFormContent] = useState('');
+  const [formStatus, setFormStatus] = useState<string>('PUBLISHED');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const fetchReports = async () => {
+    setLoading(true);
     try {
-      const [incRes, obsRes, tipsRes, intelRes] = await Promise.allSettled([
-        api.get('/incidents'),
-        api.get('/observations'),
-        api.get('/tips/control-room'),
-        api.get('/intelligence/lookup?lat=9.28&lng=79.31'),
-      ]);
-
-      const incData = incRes.status === 'fulfilled' ? (Array.isArray(incRes.value) ? incRes.value : incRes.value.data || []) : [];
-      const obsData = obsRes.status === 'fulfilled' ? (Array.isArray(obsRes.value) ? obsRes.value : obsRes.value.data || []) : [];
-      const tipsData = tipsRes.status === 'fulfilled' ? (Array.isArray(tipsRes.value) ? tipsRes.value : tipsRes.value.data || []) : [];
-      const intelData = intelRes.status === 'fulfilled' ? intelRes.value : {};
-
-      const today = new Date().toISOString().split('T')[0];
-
-      const compiledReports: ReportItem[] = [
-        {
-          id: `REP-INC-${Date.now().toString().slice(-4)}`,
-          title: 'Daily Maritime Incidents & Risk Audit Digest',
-          type: 'INCIDENTS',
-          date: today,
-          recordCount: incData.length,
-          summary: `Compiled ${incData.length} live incident records from MongoDB Atlas. Covers vessel anomalies, sanctuary breaches, and critical priority alerts.`,
-          status: 'LIVE_UPDATED',
-          rawPayload: incData,
-        },
-        {
-          id: `REP-OBS-${Date.now().toString().slice(-4)}`,
-          title: 'Coastal Field Officer Observations Log',
-          type: 'FIELD',
-          date: today,
-          recordCount: obsData.length,
-          summary: `Ingested ${obsData.length} geotagged field observations submitted by frontline marine rangers and checkpost officers.`,
-          status: 'LIVE_UPDATED',
-          rawPayload: obsData,
-        },
-        {
-          id: `REP-TIP-${Date.now().toString().slice(-4)}`,
-          title: 'Pseudonymous Tipster Verification Registry',
-          type: 'TIPS',
-          date: today,
-          recordCount: tipsData.length,
-          summary: `Aggregated ${tipsData.length} confidential tips verified by the 4-Factor Genuineness Engine and Distraction Risk algorithms.`,
-          status: 'LIVE_UPDATED',
-          rawPayload: tipsData,
-        },
-        {
-          id: `REP-PFZ-${Date.now().toString().slice(-4)}`,
-          title: 'INCOIS ERDDAP Potential Fishing Zone Digest',
-          type: 'PFZ',
-          date: today,
-          recordCount: intelData.pfz ? intelData.pfz.length : 1,
-          summary: `Satellite Sea Surface Temperature (SST) and Chlorophyll-a front advisories for the Gulf of Mannar EEZ sector.`,
-          status: 'LIVE_UPDATED',
-          rawPayload: [intelData],
-        },
-      ];
-
-      setReports(compiledReports);
+      const res = await api.get('/reports');
+      const data = res.data || (Array.isArray(res) ? res : []);
+      setReportsList(data);
     } catch (err) {
-      console.warn('Failed to compile live reports:', err);
+      console.warn('Failed to fetch research reports from backend:', err);
     } finally {
-      setIsGenerating(false);
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchLiveReports();
+    fetchReports();
   }, []);
 
-  // 1. JSON Export Handler
-  const handleExportJSON = (report: ReportItem) => {
-    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
-      JSON.stringify(
-        {
-          reportId: report.id,
-          title: report.title,
-          generatedAt: new Date().toISOString(),
-          recordCount: report.recordCount,
-          data: report.rawPayload,
-        },
-        null,
-        2
-      )
-    )}`;
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute('href', jsonString);
-    downloadAnchor.setAttribute('download', `${report.id}_${report.type.toLowerCase()}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-
-    setExportNotice(`Successfully exported "${report.title}" as JSON file.`);
-    setTimeout(() => setExportNotice(null), 4000);
+  const openCreateModal = () => {
+    setEditingReport(null);
+    setFormTitle('');
+    setFormCategory('BIODIVERSITY_ASSESSMENT');
+    setFormRegion('Gulf of Mannar Sector B4');
+    setFormAbstract('');
+    setFormContent('');
+    setFormStatus('PUBLISHED');
+    setShowAuthorModal(true);
   };
 
-  // 2. CSV Export Handler
-  const handleExportCSV = (report: ReportItem) => {
-    let csvContent = 'data:text/csv;charset=utf-8,';
-    if (!report.rawPayload || report.rawPayload.length === 0) {
-      csvContent += 'id,title,type,date\n';
-      csvContent += `${report.id},"${report.title}",${report.type},${report.date}\n`;
-    } else {
-      const keys = Object.keys(report.rawPayload[0]).filter(
-        (k) => typeof report.rawPayload[0][k] !== 'object'
-      );
-      csvContent += keys.join(',') + '\n';
-      report.rawPayload.forEach((row) => {
-        const line = keys.map((k) => `"${String(row[k] ?? '').replace(/"/g, '""')}"`).join(',');
-        csvContent += line + '\n';
-      });
+  const openEditModal = (rep: ResearchReport) => {
+    setEditingReport(rep);
+    setFormTitle(rep.title);
+    setFormCategory(rep.category);
+    setFormRegion(rep.region || 'Gulf of Mannar Sector B4');
+    setFormAbstract(rep.abstract);
+    setFormContent(rep.content);
+    setFormStatus(rep.status);
+    setShowAuthorModal(true);
+  };
+
+  const handleSaveReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formTitle.trim() || !formAbstract.trim() || !formContent.trim()) return;
+
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        title: formTitle,
+        category: formCategory,
+        region: formRegion,
+        abstract: formAbstract,
+        content: formContent,
+        status: formStatus,
+        tags: ['Marine Intelligence', 'INCOIS', formCategory],
+      };
+
+      if (editingReport) {
+        await api.patch(`/reports/${editingReport._id || editingReport.id}`, payload);
+        setNotice(`Report ${editingReport.reportId} updated successfully.`);
+      } else {
+        const res = await api.post('/reports', payload);
+        const created = res.data || res;
+        setNotice(`Report ${created.reportId || 'NEW'} created and saved to MongoDB Atlas.`);
+      }
+
+      setTimeout(() => setNotice(null), 4000);
+      setShowAuthorModal(false);
+      fetchReports();
+    } catch (err: any) {
+      console.error('Failed to save research report:', err);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const encodedUri = encodeURI(csvContent);
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute('href', encodedUri);
-    downloadAnchor.setAttribute('download', `${report.id}_${report.type.toLowerCase()}.csv`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-
-    setExportNotice(`Successfully downloaded CSV spreadsheet for "${report.title}".`);
-    setTimeout(() => setExportNotice(null), 4000);
   };
 
-  // 3. Print / PDF Handler
-  const handlePrintPDF = (report: ReportItem) => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>${report.title} - MARIS Official Report</title>
-          <style>
-            body { font-family: system-ui, -apple-system, sans-serif; margin: 30px; color: #111; }
-            h1 { font-size: 20px; border-bottom: 2px solid #000; padding-bottom: 8px; }
-            .meta { font-size: 12px; color: #555; margin-bottom: 20px; }
-            .summary { background: #f8fafc; border: 1px solid #cbd5e1; padding: 14px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
-            th, td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; }
-            th { background: #f1f5f9; font-weight: 600; }
-            .header-banner { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-            .badge { background: #166534; color: white; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
-          </style>
-        </head>
-        <body>
-          <div class="header-banner">
-            <div>
-              <span class="badge">MARIS OFFICIAL GOVT DEPLOYMENT</span>
-              <h1>${report.title}</h1>
-            </div>
-            <div style="text-align: right; font-size: 11px; color: #666;">
-              <strong>MARIS Command Center</strong><br/>
-              Gulf of Mannar Sector<br/>
-              Date: ${report.date}
-            </div>
-          </div>
-
-          <div class="meta">
-            <strong>Report ID:</strong> ${report.id} &bull; <strong>Type:</strong> ${report.type} &bull; <strong>Records Count:</strong> ${report.recordCount} &bull; <strong>Security Classification:</strong> RESTRICTED
-          </div>
-
-          <div class="summary">
-            <strong>Operational Summary:</strong><br/>
-            ${report.summary}
-          </div>
-
-          <h3>Ingested Live Dataset (Top Records)</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Record ID</th>
-                <th>Title / Description</th>
-                <th>Priority / Score</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${
-                report.rawPayload.length === 0
-                  ? '<tr><td colspan="4">No live records found in dataset.</td></tr>'
-                  : report.rawPayload
-                      .slice(0, 10)
-                      .map(
-                        (item) => `
-                <tr>
-                  <td>${item._id || item.id || item.tipsterId || 'REC-LIVE'}</td>
-                  <td>${item.title || item.description || item.zoneName || 'Operational Event Record'}</td>
-                  <td>${item.priority || item.genuinenessScore || item.confidence || 'NORMAL'}</td>
-                  <td>${item.status || item.verificationState || 'INGESTED'}</td>
-                </tr>
-              `
-                      )
-                      .join('')
-              }
-            </tbody>
-          </table>
-
-          <div style="margin-top: 40px; border-top: 1px dashed #ccc; padding-top: 10px; font-size: 10px; color: #888;">
-            Generated dynamically by MARIS Agentic Platform &bull; Smart India Hackathon 2026 Problem Statement 26176
-          </div>
-        </body>
-      </html>
-    `);
-
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-    }, 500);
-
-    setExportNotice(`Printable PDF generator opened for "${report.title}".`);
-    setTimeout(() => setExportNotice(null), 4000);
+  const handlePublishToggle = async (rep: ResearchReport) => {
+    const targetStatus = rep.status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED';
+    try {
+      await api.patch(`/reports/${rep._id || rep.id}/publish`, { status: targetStatus });
+      setNotice(`Report ${rep.reportId} status updated to ${targetStatus}`);
+      setTimeout(() => setNotice(null), 3000);
+      fetchReports();
+    } catch (err) {
+      console.error('Failed to toggle report status:', err);
+    }
   };
 
-  const filteredReports = reports.filter((r) => {
-    if (filterType === 'ALL') return true;
-    return r.type === filterType;
+  const isAuthorRole = ['RESEARCHER', 'SUPERVISOR', 'ADMIN', 'ORG_ADMIN', 'CONTROL_ROOM_OPERATOR', 'CONTROL_ROOM'].includes(user?.role || '');
+
+  const filteredReports = reportsList.filter((r) => {
+    if (activeTab === 'DRAFT') return r.status === 'DRAFT';
+    if (activeTab === 'PUBLISHED') return r.status === 'PUBLISHED';
+    return true;
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-      {/* Top Banner */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '28px', maxWidth: '1200px', margin: '0 auto' }}>
+      
+      {/* Header Banner */}
       <div
         style={{
           backgroundColor: '#ffffff',
           border: '1px solid rgba(0,0,0,0.08)',
           borderRadius: '16px',
-          padding: '24px',
+          padding: '28px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '16px',
+          gap: '20px',
           boxShadow: '0 2px 12px rgba(0,0,0,0.03)',
         }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-            <FileText size={16} color="#000" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+            <FileText size={18} color="#000" />
             <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              DYNAMIC INTELLIGENCE REPORT GENERATOR
+              MARIS MARINE RESEARCH & POLICY INTELLIGENCE
             </span>
           </div>
-          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.4rem', margin: 0 }}>
-            Operational Reports & Export Summaries
+          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.6rem', fontWeight: 500, margin: 0 }}>
+            Scientific Publications & Environmental Studies
           </h2>
-          <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'rgba(0,0,0,0.6)' }}>
-            Export live MongoDB incident collections, officer observations, tipster verification logs, and INCOIS PFZ bulletins.
+          <p style={{ margin: '6px 0 0', fontSize: '0.88rem', color: 'rgba(0,0,0,0.6)', maxWidth: '700px' }}>
+            Author, edit, review, and publish oceanographic intelligence reports, species migration studies, and potential fishing zone (PFZ) advisories.
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button
-            onClick={fetchLiveReports}
-            disabled={isGenerating}
-            style={{
-              padding: '10px 16px',
-              borderRadius: '10px',
-              border: '1px solid rgba(0,0,0,0.12)',
-              backgroundColor: '#ffffff',
-              color: '#000000',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            <RefreshCw size={14} className={isGenerating ? 'animate-spin' : ''} />
-            <span>{isGenerating ? 'Recompiling...' : 'Refresh Live Reports'}</span>
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {isAuthorRole && (
+            <button
+              onClick={openCreateModal}
+              style={{
+                padding: '10px 20px',
+                borderRadius: '10px',
+                border: 'none',
+                backgroundColor: '#000000',
+                color: '#ffffff',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              <Plus size={16} />
+              <span>Create New Report</span>
+            </button>
+          )}
+
+          <div style={{ fontSize: '0.8rem', color: '#166534', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', padding: '8px 14px', borderRadius: '9999px', fontWeight: 600 }}>
+            Author Role: {user?.role || 'RESEARCHER'}
+          </div>
         </div>
       </div>
 
-      {exportNotice && (
-        <div
-          style={{
-            backgroundColor: '#f0fdf4',
-            border: '1px solid #bbf7d0',
-            color: '#166534',
-            padding: '14px 20px',
-            borderRadius: '12px',
-            fontSize: '0.85rem',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-          }}
-        >
-          <CheckCircle2 size={16} />
-          <span>{exportNotice}</span>
+      {notice && (
+        <div style={{ padding: '14px 20px', borderRadius: '12px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', fontSize: '0.88rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <CheckCircle2 size={18} />
+          <span>{notice}</span>
         </div>
       )}
 
-      {/* Filter Tabs Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-        {[
-          { label: 'All Reports', value: 'ALL' },
-          { label: 'Maritime Incidents', value: 'INCIDENTS' },
-          { label: 'Field Observations', value: 'FIELD' },
-          { label: 'Tipster Verification', value: 'TIPS' },
-          { label: 'INCOIS PFZ Bulletins', value: 'PFZ' },
-        ].map((tab) => (
+      {/* Tabs & Controls */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '8px', backgroundColor: '#f1f5f9', padding: '4px', borderRadius: '10px' }}>
           <button
-            key={tab.value}
-            onClick={() => setFilterType(tab.value)}
+            onClick={() => setActiveTab('ALL')}
             style={{
-              padding: '8px 16px',
-              borderRadius: '9999px',
-              border: filterType === tab.value ? '1px solid #000' : '1px solid rgba(0,0,0,0.1)',
-              backgroundColor: filterType === tab.value ? '#000000' : '#ffffff',
-              color: filterType === tab.value ? '#ffffff' : '#000000',
-              fontSize: '0.8rem',
-              fontWeight: 600,
+              padding: '6px 14px',
+              borderRadius: '6px',
+              border: 'none',
+              backgroundColor: activeTab === 'ALL' ? '#ffffff' : 'transparent',
+              fontWeight: activeTab === 'ALL' ? 700 : 500,
+              fontSize: '0.82rem',
               cursor: 'pointer',
+              boxShadow: activeTab === 'ALL' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
             }}
           >
-            {tab.label}
+            All Reports ({reportsList.length})
           </button>
-        ))}
+          <button
+            onClick={() => setActiveTab('PUBLISHED')}
+            style={{
+              padding: '6px 14px',
+              borderRadius: '6px',
+              border: 'none',
+              backgroundColor: activeTab === 'PUBLISHED' ? '#ffffff' : 'transparent',
+              fontWeight: activeTab === 'PUBLISHED' ? 700 : 500,
+              fontSize: '0.82rem',
+              cursor: 'pointer',
+              boxShadow: activeTab === 'PUBLISHED' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+            }}
+          >
+            Published ({reportsList.filter((r) => r.status === 'PUBLISHED').length})
+          </button>
+          <button
+            onClick={() => setActiveTab('DRAFT')}
+            style={{
+              padding: '6px 14px',
+              borderRadius: '6px',
+              border: 'none',
+              backgroundColor: activeTab === 'DRAFT' ? '#ffffff' : 'transparent',
+              fontWeight: activeTab === 'DRAFT' ? 700 : 500,
+              fontSize: '0.82rem',
+              cursor: 'pointer',
+              boxShadow: activeTab === 'DRAFT' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+            }}
+          >
+            Drafts ({reportsList.filter((r) => r.status === 'DRAFT').length})
+          </button>
+        </div>
+
+        <button
+          onClick={fetchReports}
+          disabled={loading}
+          style={{
+            padding: '6px 14px',
+            borderRadius: '8px',
+            border: '1px solid rgba(0,0,0,0.1)',
+            backgroundColor: '#ffffff',
+            fontSize: '0.8rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+          }}
+        >
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          <span>Refresh Registry</span>
+        </button>
       </div>
 
-      {/* Reports List Grid */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {filteredReports.length === 0 ? (
-          <div style={{ padding: '30px', borderRadius: '16px', backgroundColor: '#ffffff', border: '1px solid rgba(0,0,0,0.08)', textAlign: 'center', color: '#6b7280', fontSize: '0.9rem' }}>
-            No reports found for category "{filterType}". Click <strong>Refresh Live Reports</strong> above.
-          </div>
-        ) : (
-          filteredReports.map((rep) => (
+      {/* Reports Directory Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '24px' }}>
+        {filteredReports.map((rep) => {
+          const isPublished = rep.status === 'PUBLISHED';
+
+          return (
             <div
-              key={rep.id}
+              key={rep._id || rep.id || rep.reportId}
               style={{
                 backgroundColor: '#ffffff',
                 border: '1px solid rgba(0,0,0,0.08)',
                 borderRadius: '16px',
                 padding: '24px',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.02)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '14px',
-                boxShadow: '0 2px 10px rgba(0,0,0,0.02)',
+                justify: 'space-between',
+                gap: '16px',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(0,0,0,0.4)' }}>
-                    {rep.id} • {rep.date}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <span style={{ fontSize: '0.74rem', fontWeight: 700, padding: '3px 8px', borderRadius: '4px', backgroundColor: '#eff6ff', color: '#1d4ed8', fontFamily: 'monospace' }}>
+                    {rep.reportId}
                   </span>
-                  <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', backgroundColor: '#dcfce7', color: '#15803d' }}>
-                    {rep.recordCount} Live Records
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '3px 8px', borderRadius: '4px', backgroundColor: isPublished ? '#f0fdf4' : '#fef3c7', color: isPublished ? '#166534' : '#b45309' }}>
+                    {rep.status}
                   </span>
                 </div>
 
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', backgroundColor: '#f1f5f9' }}>
-                  {rep.status}
-                </span>
+                <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', margin: '0 0 8px', color: '#000' }}>
+                  {rep.title}
+                </h3>
+
+                <div style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: '10px', display: 'flex', gap: '12px' }}>
+                  <span>Author: <strong>{rep.author}</strong></span>
+                  <span>Region: <strong>{rep.region}</strong></span>
+                </div>
+
+                <p style={{ margin: 0, fontSize: '0.88rem', color: '#4b5563', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                  {rep.abstract}
+                </p>
               </div>
 
-              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', margin: 0, color: '#000' }}>
-                {rep.title}
-              </h3>
-              <p style={{ margin: 0, fontSize: '0.88rem', color: 'rgba(0,0,0,0.7)', lineHeight: 1.4 }}>
-                {rep.summary}
-              </p>
+              <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <button
+                  onClick={() => setShowViewModal(rep)}
+                  style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.1)', backgroundColor: '#fff', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Eye size={14} />
+                  <span>Read Report</span>
+                </button>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '14px', flexWrap: 'wrap' }}>
-                <button
-                  onClick={() => handleExportJSON(rep)}
-                  style={{
-                    padding: '8px 14px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(0,0,0,0.12)',
-                    backgroundColor: '#ffffff',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                  }}
-                >
-                  <Download size={14} />
-                  <span>Export JSON</span>
-                </button>
-                <button
-                  onClick={() => handleExportCSV(rep)}
-                  style={{
-                    padding: '8px 14px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(0,0,0,0.12)',
-                    backgroundColor: '#ffffff',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                  }}
-                >
-                  <Download size={14} />
-                  <span>Export CSV</span>
-                </button>
-                <button
-                  onClick={() => handlePrintPDF(rep)}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    backgroundColor: '#000000',
-                    color: '#ffffff',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                  }}
-                >
-                  <Printer size={14} />
-                  <span>Printable PDF Report</span>
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {isAuthorRole && (
+                    <>
+                      <button
+                        onClick={() => openEditModal(rep)}
+                        style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.1)', backgroundColor: '#fff', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        <Edit size={14} />
+                      </button>
+
+                      <button
+                        onClick={() => handlePublishToggle(rep)}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          border: isPublished ? '1px solid #fecaca' : '1px solid #bbf7d0',
+                          backgroundColor: isPublished ? '#fef2f2' : '#f0fdf4',
+                          color: isPublished ? '#991b1b' : '#166534',
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {isPublished ? 'Unpublish' : 'Publish'}
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
-          ))
-        )}
+          );
+        })}
       </div>
+
+      {/* READ REPORT MODAL */}
+      {showViewModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', zIndex: 1050, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={() => setShowViewModal(null)}>
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '20px', maxWidth: '750px', width: '100%', maxHeight: '85vh', overflowY: 'auto', padding: '32px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ borderBottom: '1px solid rgba(0,0,0,0.08)', paddingBottom: '16px', marginBottom: '20px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1d4ed8', backgroundColor: '#eff6ff', padding: '4px 10px', borderRadius: '4px', fontFamily: 'monospace' }}>
+                {showViewModal.reportId} • {showViewModal.category}
+              </span>
+              <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.6rem', margin: '10px 0 6px' }}>{showViewModal.title}</h2>
+              <div style={{ fontSize: '0.82rem', color: '#64748b' }}>
+                Authored by <strong>{showViewModal.author}</strong> • {new Date(showViewModal.createdAt).toLocaleDateString()}
+              </div>
+            </div>
+
+            <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px', borderLeft: '4px solid #0284c7', marginBottom: '20px' }}>
+              <strong style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#0369a1', display: 'block', marginBottom: '4px' }}>EXECUTIVE ABSTRACT</strong>
+              <p style={{ margin: 0, fontSize: '0.9rem', color: '#334155', lineHeight: 1.5 }}>{showViewModal.abstract}</p>
+            </div>
+
+            <div style={{ fontSize: '0.92rem', lineHeight: 1.65, color: '#1e293b', whiteSpace: 'pre-line' }}>
+              {showViewModal.content}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px', borderTop: '1px solid rgba(0,0,0,0.08)', paddingTop: '16px' }}>
+              <button onClick={() => setShowViewModal(null)} style={{ padding: '8px 20px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.12)', backgroundColor: '#fff', fontSize: '0.85rem', fontWeight: 600 }}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CREATE / EDIT AUTHOR REPORT MODAL */}
+      {showAuthorModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', zIndex: 1050, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={() => setShowAuthorModal(false)}>
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '20px', maxWidth: '680px', width: '100%', padding: '28px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.4rem', margin: '0 0 16px', color: '#000' }}>
+              {editingReport ? `Edit Research Report: ${editingReport.reportId}` : 'Author New Research Report'}
+            </h3>
+
+            <form onSubmit={handleSaveReport} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>REPORT TITLE</label>
+                <input
+                  type="text"
+                  required
+                  value={formTitle}
+                  onChange={(e) => setFormTitle(e.target.value)}
+                  placeholder="e.g. Coral Reef Thermal Stress Analysis in Gulf of Mannar Sector"
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.12)', fontSize: '0.9rem' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>RESEARCH CATEGORY</label>
+                  <select
+                    value={formCategory}
+                    onChange={(e) => setFormCategory(e.target.value as any)}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.12)', fontSize: '0.88rem' }}
+                  >
+                    <option value="BIODIVERSITY_ASSESSMENT">BIODIVERSITY_ASSESSMENT</option>
+                    <option value="PFZ_ADVISORY">PFZ_ADVISORY</option>
+                    <option value="SPECIES_MIGRATION">SPECIES_MIGRATION</option>
+                    <option value="POLLUTION_DRIFT">POLLUTION_DRIFT</option>
+                    <option value="ILLEGAL_TRAWLING">ILLEGAL_TRAWLING</option>
+                    <option value="CLIMATE_IMPACT">CLIMATE_IMPACT</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>TARGET REGION</label>
+                  <input
+                    type="text"
+                    value={formRegion}
+                    onChange={(e) => setFormRegion(e.target.value)}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.12)', fontSize: '0.9rem' }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>EXECUTIVE ABSTRACT</label>
+                <textarea
+                  required
+                  rows={2}
+                  value={formAbstract}
+                  onChange={(e) => setFormAbstract(e.target.value)}
+                  placeholder="Summary of scientific findings and operational recommendations..."
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.12)', fontSize: '0.88rem' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>FULL NARRATIVE CONTENT</label>
+                <textarea
+                  required
+                  rows={6}
+                  value={formContent}
+                  onChange={(e) => setFormContent(e.target.value)}
+                  placeholder="Detailed research methodology, satellite observations, and data correlation..."
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.12)', fontSize: '0.88rem' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 700 }}>STATUS:</label>
+                  <select
+                    value={formStatus}
+                    onChange={(e) => setFormStatus(e.target.value)}
+                    style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.12)', fontSize: '0.82rem' }}
+                  >
+                    <option value="DRAFT">DRAFT</option>
+                    <option value="PUBLISHED">PUBLISHED</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button type="button" onClick={() => setShowAuthorModal(false)} style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.12)', backgroundColor: '#fff', fontSize: '0.85rem', fontWeight: 600 }}>Cancel</button>
+                  <button type="submit" disabled={isSubmitting} style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', backgroundColor: '#000', color: '#fff', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>
+                    {isSubmitting ? 'Saving...' : 'Save & Publish'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

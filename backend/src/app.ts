@@ -13,6 +13,7 @@ import { syncRouter } from './sync/sync.router';
 import { intelligenceRouter } from './intelligence/intelligence.router';
 import { agentRouter } from './agents/agent.router';
 import { tipRouter } from './incidents/tip.router';
+import { reportRouter } from './reports/report.router';
 
 const app = express();
 
@@ -41,6 +42,7 @@ v1Router.use('/sync', syncRouter);
 v1Router.use('/intelligence', intelligenceRouter);
 v1Router.use('/ai', agentRouter);
 v1Router.use('/tips', tipRouter);
+v1Router.use('/reports', reportRouter);
 
 // Health Check Endpoint
 v1Router.get('/health', (_req, res) => {

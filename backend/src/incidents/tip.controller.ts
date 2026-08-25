@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { evaluateTipVerification } from '../agents/verification.service';
 import { Tip } from './Tip.model';
 import { Incident } from './Incident.model';
 import { ValidationError, NotFoundError } from '../common/errors';
@@ -13,59 +14,7 @@ function generatePseudonymousTipsterId(): string {
   return `TIP-${randomDigits}`;
 }
 
-/**
- * Calculate multi-factor genuineness score & distraction risk
- */
-function calculateGenuinenessScore(payload: {
-  category: string;
-  description: string;
-  hasEvidence: boolean;
-  lat: number;
-  lng: number;
-}) {
-  // Factor 1: Spatial & Satellite Correlation (0-30)
-  // Check proximity to marine coastal hotspot area (Gulf of Mannar / Palk Strait)
-  const isTargetZone = payload.lat >= 8.0 && payload.lat <= 11.5 && payload.lng >= 78.0 && payload.lng <= 80.5;
-  const spatialCorrelation = isTargetZone ? 26 : 14;
 
-  // Factor 2: Historical Pattern Match (0-30)
-  const descLower = payload.description.toLowerCase();
-  const matchesPattern = descLower.includes('trawler') || descLower.includes('sea turtle') || descLower.includes('sea horse') || descLower.includes('oil') || descLower.includes('gear');
-  const historicalPatternMatch = matchesPattern ? 28 : 15;
-
-  // Factor 3: Media Provenance (0-20)
-  const mediaProvenanceScore = payload.hasEvidence ? 18 : 8;
-
-  // Factor 4: Marine Weather Feasibility (0-20)
-  const marineWeatherFeasibility = 18;
-
-  const totalScore = spatialCorrelation + historicalPatternMatch + mediaProvenanceScore + marineWeatherFeasibility;
-  const distractionRisk = totalScore < 50 ? 'HIGH' : totalScore < 75 ? 'MEDIUM' : 'LOW';
-
-  const whyFlagged: string[] = [];
-  if (isTargetZone) whyFlagged.push('Location overlaps active maritime boundary enforcement sector');
-  if (matchesPattern) whyFlagged.push('Reported species/vessel type matches historical contraband seizure patterns');
-  if (payload.hasEvidence) whyFlagged.push('Evidence media uploaded with verified GPS coordinates');
-
-  const suggestedVerification: string[] = [
-    'Cross-reference reported coordinates with Copernicus satellite SST/chlorophyll raster overlay',
-    'Check nearby coastal patrol radar and AIS vessel track history',
-    'Verify photo/video EXIF metadata timestamp against ocean weather records',
-  ];
-
-  return {
-    genuinenessScore: totalScore,
-    distractionRisk,
-    verificationFactors: {
-      spatialCorrelation,
-      historicalPatternMatch,
-      mediaProvenanceScore,
-      marineWeatherFeasibility,
-    },
-    whyFlagged,
-    suggestedVerification,
-  };
-}
 
 /**
  * Public Endpoint: Submit an Anonymous / Pseudonymous Tip
@@ -84,12 +33,12 @@ export async function submitTip(req: Request, res: Response, next: NextFunction)
     const tipsterId = generatePseudonymousTipsterId();
     const lat = location.coordinates[1];
     const lng = location.coordinates[0];
-    const hasEvidence = Array.isArray(evidence) && evidence.length > 0;
 
-    const scoring = calculateGenuinenessScore({
+    const scoring = await evaluateTipVerification({
       category: category || 'SUSPICIOUS_VESSEL',
+      title,
       description,
-      hasEvidence,
+      evidence: evidence || [],
       lat,
       lng,
     });
@@ -107,6 +56,10 @@ export async function submitTip(req: Request, res: Response, next: NextFunction)
       genuinenessScore: scoring.genuinenessScore,
       distractionRisk: scoring.distractionRisk,
       verificationFactors: scoring.verificationFactors,
+      evidenceSummary: scoring.evidenceSummary,
+      signals: scoring.signals,
+      dataAvailability: scoring.dataAvailability,
+      agentTrace: scoring.agentTrace,
       whyFlagged: scoring.whyFlagged,
       suggestedVerification: scoring.suggestedVerification,
       clientMetadata: {
@@ -137,6 +90,11 @@ export async function submitTip(req: Request, res: Response, next: NextFunction)
         status: newTip.status,
         genuinenessScore: newTip.genuinenessScore,
         distractionRisk: newTip.distractionRisk,
+        verificationFactors: newTip.verificationFactors,
+        evidenceSummary: newTip.evidenceSummary,
+        signals: newTip.signals,
+        dataAvailability: newTip.dataAvailability,
+        agentTrace: newTip.agentTrace,
         createdAt: newTip.createdAt,
       },
     });

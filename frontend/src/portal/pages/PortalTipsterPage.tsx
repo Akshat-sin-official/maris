@@ -322,13 +322,13 @@ export const PortalTipsterPage: React.FC = () => {
                       {tip.description}
                     </p>
                   </div>
-
+                  
                   {/* Genuineness Score & Provenance Metadata Bar */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', padding: '14px', borderRadius: '12px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
                     <div>
-                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>GENUINENESS SCORE</div>
-                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: isHighScore ? '#047857' : '#b45309' }}>
-                        {tip.genuinenessScore || 75}/100 ({tip.distractionRisk || 'LOW'} RISK)
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>EVIDENCE CORRELATION SCORE</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: tip.distractionRisk === 'HIGH' ? '#991b1b' : isHighScore ? '#047857' : '#b45309' }}>
+                        {tip.genuinenessScore || 0}/100 ({tip.distractionRisk || 'HIGH'} RISK)
                       </div>
                     </div>
 
@@ -349,6 +349,91 @@ export const PortalTipsterPage: React.FC = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* 4-FACTOR DETERMINISTIC BREAKDOWN */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', padding: '10px 14px', backgroundColor: '#f1f5f9', borderRadius: '10px', fontSize: '0.78rem' }}>
+                    <div>
+                      <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 700, display: 'block' }}>SPATIAL CORRELATION</span>
+                      <strong style={{ color: '#0f172a' }}>{tip.verificationFactors?.spatialCorrelation || 0} / 30</strong>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 700, display: 'block' }}>HISTORICAL PATTERN</span>
+                      <strong style={{ color: '#0f172a' }}>{tip.verificationFactors?.historicalPatternMatch || 0} / 30</strong>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 700, display: 'block' }}>MEDIA PROVENANCE</span>
+                      <strong style={{ color: '#0f172a' }}>{tip.verificationFactors?.mediaProvenanceScore || 0} / 20</strong>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 700, display: 'block' }}>MARINE WEATHER</span>
+                      <strong style={{ color: '#0f172a' }}>{tip.verificationFactors?.marineWeatherFeasibility || 0} / 20</strong>
+                    </div>
+                  </div>
+
+                  {/* EVIDENCE CORROBORATION DETAILS */}
+                  {tip.evidenceSummary && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8rem', padding: '12px', borderRadius: '10px', backgroundColor: '#fafafa', border: '1px solid #f0f0f0' }}>
+                      {tip.evidenceSummary.supporting?.length > 0 && (
+                        <div>
+                          <strong style={{ color: '#166534', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>✓ Supporting Evidence:</strong>
+                          <ul style={{ margin: '4px 0 0', paddingLeft: '18px', color: '#374151' }}>
+                            {tip.evidenceSummary.supporting.map((item: string, idx: number) => (
+                              <li key={idx}>{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {tip.evidenceSummary.contradicting?.length > 0 && (
+                        <div>
+                          <strong style={{ color: '#991b1b', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>⚠ Contradicting Signals:</strong>
+                          <ul style={{ margin: '4px 0 0', paddingLeft: '18px', color: '#7f1d1d' }}>
+                            {tip.evidenceSummary.contradicting.map((item: string, idx: number) => (
+                              <li key={idx}>{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {tip.evidenceSummary.noCorroboration?.length > 0 && (
+                        <div>
+                          <strong style={{ color: '#4b5563', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>○ No Independent Corroboration:</strong>
+                          <ul style={{ margin: '4px 0 0', paddingLeft: '18px', color: '#6b7280' }}>
+                            {tip.evidenceSummary.noCorroboration.map((item: string, idx: number) => (
+                              <li key={idx}>{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {tip.evidenceSummary.unavailable?.length > 0 && (
+                        <div>
+                          <strong style={{ color: '#b45309', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>◌ Data Source Unavailable:</strong>
+                          <ul style={{ margin: '4px 0 0', paddingLeft: '18px', color: '#92400e' }}>
+                            {tip.evidenceSummary.unavailable.map((item: string, idx: number) => (
+                              <li key={idx}>{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* AGENT EXECUTION TRACE */}
+                  {tip.agentTrace && tip.agentTrace.length > 0 && (
+                    <div style={{ padding: '10px 12px', borderRadius: '8px', backgroundColor: '#f8fafc', border: '1px dashed #cbd5e1', fontSize: '0.74rem' }}>
+                      <strong style={{ color: '#475569', display: 'block', marginBottom: '4px' }}>AGENT EXECUTION AUDIT TRACE</strong>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontFamily: 'monospace', color: '#334155' }}>
+                        {tip.agentTrace.map((tr: any, idx: number) => (
+                          <div key={idx} style={{ display: 'flex', gap: '8px' }}>
+                            <span style={{ color: '#0284c7', fontWeight: 700 }}>[{tr.agent}]</span>
+                            <span>{tr.action}</span>
+                            <span style={{ color: '#94a3b8', marginLeft: 'auto' }}>{new Date(tr.timestamp).toLocaleTimeString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Action Buttons */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '14px', flexWrap: 'wrap', gap: '10px' }}>

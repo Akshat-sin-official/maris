@@ -46,6 +46,34 @@ export interface ITip extends Document {
   };
   whyFlagged: string[];
   suggestedVerification: string[];
+
+  // Evidence Corroboration & Data Availability Metadata
+  evidenceSummary?: {
+    supporting: string[];
+    contradicting: string[];
+    unavailable: string[];
+    noCorroboration?: string[];
+  };
+  signals?: Array<{
+    source: string;
+    category: string;
+    finding: string;
+    scoreContribution: number;
+    recordId?: string;
+  }>;
+  dataAvailability?: {
+    spatial: 'AVAILABLE' | 'UNAVAILABLE';
+    historical: 'AVAILABLE' | 'UNAVAILABLE';
+    media: 'NOT_PROVIDED' | 'VERIFIED' | 'UNAVAILABLE';
+    marineWeather: 'AVAILABLE' | 'UNAVAILABLE';
+  };
+  agentTrace?: Array<{
+    agent: string;
+    action: string;
+    source?: string;
+    timestamp: Date;
+    success?: boolean;
+  }>;
   
   // Background Security & System Provenance Metadata
   clientMetadata?: {
@@ -132,6 +160,36 @@ const TipSchema = new Schema<ITip>(
     },
     whyFlagged: [String],
     suggestedVerification: [String],
+    evidenceSummary: {
+      supporting: [String],
+      contradicting: [String],
+      unavailable: [String],
+      noCorroboration: [String],
+    },
+    signals: [
+      {
+        source: String,
+        category: String,
+        finding: String,
+        scoreContribution: Number,
+        recordId: String,
+      },
+    ],
+    dataAvailability: {
+      spatial: { type: String, enum: ['AVAILABLE', 'UNAVAILABLE'], default: 'AVAILABLE' },
+      historical: { type: String, enum: ['AVAILABLE', 'UNAVAILABLE'], default: 'AVAILABLE' },
+      media: { type: String, enum: ['NOT_PROVIDED', 'VERIFIED', 'UNAVAILABLE'], default: 'NOT_PROVIDED' },
+      marineWeather: { type: String, enum: ['AVAILABLE', 'UNAVAILABLE'], default: 'AVAILABLE' },
+    },
+    agentTrace: [
+      {
+        agent: String,
+        action: String,
+        source: String,
+        timestamp: { type: Date, default: Date.now },
+        success: Boolean,
+      },
+    ],
     clientMetadata: {
       ipAddress: String,
       userAgent: String,

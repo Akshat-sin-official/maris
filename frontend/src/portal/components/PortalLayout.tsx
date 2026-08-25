@@ -32,6 +32,7 @@ const roleRouteMatrix: Record<string, string[]> = {
     '/portal/investigations',
     '/portal/tipster',
     '/portal/reports',
+    '/portal/admin',
   ],
   CONTROL_ROOM: [
     '/portal/dashboard',
@@ -44,6 +45,7 @@ const roleRouteMatrix: Record<string, string[]> = {
     '/portal/investigations',
     '/portal/tipster',
     '/portal/reports',
+    '/portal/admin',
   ],
   RESEARCHER: [
     '/portal/dashboard',
