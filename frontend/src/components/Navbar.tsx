@@ -132,6 +132,30 @@ export const Navbar: React.FC = () => {
       </Link>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', pointerEvents: 'auto', zIndex: 101 }}>
+        {/* Direct Link to Public Tipster Portal */}
+        <Link
+          to="/report-tip"
+          className="desktop-only-btn"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '9px 16px',
+            borderRadius: '9999px',
+            backgroundColor: '#dc2626',
+            color: '#ffffff',
+            textDecoration: 'none',
+            fontSize: '0.78rem',
+            fontFamily: 'var(--font-body)',
+            fontWeight: 600,
+            letterSpacing: '0.04em',
+            transition: 'all 0.25s ease',
+          }}
+        >
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#ffffff', display: 'inline-block' }} />
+          <span>REPORT TIP</span>
+        </Link>
+
         {/* Direct Link to Operational Control Room Portal Login (Desktop Only) */}
         <Link
           to="/portal/login"

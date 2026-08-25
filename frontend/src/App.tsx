@@ -33,6 +33,8 @@ import { PortalReportsPage } from './portal/pages/PortalReportsPage';
 import { PortalAdminPage } from './portal/pages/PortalAdminPage';
 import { PortalTipsterPage } from './portal/pages/PortalTipsterPage';
 
+import { PublicTipsterPage } from './pages/PublicTipsterPage';
+
 export const App: React.FC = () => {
   return (
     <AuthProvider>
@@ -72,6 +74,8 @@ export const App: React.FC = () => {
                 <Route path="/technology" element={<TechnologyPage />} />
                 <Route path="/about" element={<AboutPage />} />
                 <Route path="/contact" element={<ContactPage />} />
+                <Route path="/report-tip" element={<PublicTipsterPage />} />
+                <Route path="/tipster" element={<PublicTipsterPage />} />
                 <Route path="/404" element={<NotFoundPage />} />
                 <Route path="*" element={<NotFoundPage />} />
               </Routes>

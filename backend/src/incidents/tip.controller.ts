@@ -69,11 +69,14 @@ function calculateGenuinenessScore(payload: {
  */
 export async function submitTip(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { category, title, description, location, evidence } = req.body;
+    const { category, title, description, location, evidence, clientMetadata: bodyMeta } = req.body;
 
     if (!title || !description || !location || !location.coordinates) {
       throw new ValidationError('Title, description, and valid GeoJSON location coordinates are required.');
     }
+
+    const clientIp = (req.headers['x-forwarded-for'] as string) || req.ip || req.socket.remoteAddress || '127.0.0.1';
+    const userAgent = req.headers['user-agent'] || 'unknown';
 
     const tipsterId = generatePseudonymousTipsterId();
     const lat = location.coordinates[1];
@@ -103,6 +106,16 @@ export async function submitTip(req: Request, res: Response, next: NextFunction)
       verificationFactors: scoring.verificationFactors,
       whyFlagged: scoring.whyFlagged,
       suggestedVerification: scoring.suggestedVerification,
+      clientMetadata: {
+        ipAddress: clientIp,
+        userAgent: userAgent,
+        deviceType: bodyMeta?.deviceType || 'DESKTOP',
+        browser: bodyMeta?.browser || 'Browser',
+        os: bodyMeta?.os || 'OS',
+        screenResolution: bodyMeta?.screenResolution || '1920x1080',
+        language: bodyMeta?.language || 'en-US',
+        timezone: bodyMeta?.timezone || 'Asia/Kolkata',
+      },
       status: 'SUBMITTED',
     });
 

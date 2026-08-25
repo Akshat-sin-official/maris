@@ -47,6 +47,18 @@ export interface ITip extends Document {
   whyFlagged: string[];
   suggestedVerification: string[];
   
+  // Background Security & System Provenance Metadata
+  clientMetadata?: {
+    ipAddress?: string;
+    userAgent?: string;
+    deviceType?: string;
+    browser?: string;
+    os?: string;
+    screenResolution?: string;
+    language?: string;
+    timezone?: string;
+  };
+
   status: TipVerificationStatus;
   reviewedBy?: mongoose.Types.ObjectId;
   reviewedAt?: Date;
@@ -120,6 +132,16 @@ const TipSchema = new Schema<ITip>(
     },
     whyFlagged: [String],
     suggestedVerification: [String],
+    clientMetadata: {
+      ipAddress: String,
+      userAgent: String,
+      deviceType: String,
+      browser: String,
+      os: String,
+      screenResolution: String,
+      language: String,
+      timezone: String,
+    },
     status: {
       type: String,
       enum: ['SUBMITTED', 'UNDER_REVIEW', 'VERIFIED', 'REJECTED', 'ACTIONED'],
