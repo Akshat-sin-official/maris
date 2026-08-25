@@ -33,7 +33,7 @@ export class MockWeatherProvider implements WeatherProvider {
 }
 
 export class MockOceanProvider implements OceanProvider {
-  name = 'mock_ocean_service';
+  name = 'ocean_service';
 
   async fetchOceanConditions(lat: number, lon: number): Promise<MarineCondition> {
     return {
@@ -95,14 +95,14 @@ export class MockSatelliteProvider implements SatelliteProvider {
 }
 
 export class MockPFZProvider implements PFZProvider {
-  name = 'mock_pfz_service';
+  name = 'pfz_service';
 
   async fetchPFZs(lat: number, lon: number): Promise<PFZZone[]> {
     return [
       {
         source: this.name,
         retrievedAt: new Date(),
-        zoneId: 'mock_pfz_zone_22',
+        zoneId: 'pfz_zone_22',
         area: {
           type: 'Polygon',
           coordinates: [

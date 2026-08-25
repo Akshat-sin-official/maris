@@ -48,7 +48,7 @@ export const PortalSidebar: React.FC<PortalSidebarProps> = ({
       icon: LayoutDashboard,
     },
     {
-      name: 'MARIS Grok AI',
+      name: 'MARIS AI',
       path: '/portal/ai',
       icon: Bot,
       badge: 'Agentic',

@@ -87,6 +87,36 @@ export const AskMarisAiModal: React.FC<AskMarisAiModalProps> = ({ isOpen, onClos
     }
   };
 
+  const getCleanAnswerText = (rawAnswer: any): string => {
+    if (!rawAnswer) return '';
+    let text = typeof rawAnswer === 'string' ? rawAnswer.trim() : JSON.stringify(rawAnswer);
+
+    let depth = 0;
+    while (depth < 5 && typeof text === 'string') {
+      text = text.trim();
+      if (text.startsWith('"') && text.endsWith('"') && text.length > 1) {
+        text = text.slice(1, -1).trim();
+        depth++;
+        continue;
+      }
+      if (text.startsWith('{') && text.endsWith('}')) {
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed.answer) {
+            text = typeof parsed.answer === 'string' ? parsed.answer : JSON.stringify(parsed.answer);
+            depth++;
+            continue;
+          }
+        } catch {
+          break;
+        }
+      }
+      break;
+    }
+
+    return text.replace(/\\n/g, '\n').replace(/\\"/g, '"').trim();
+  };
+
   const getRiskBadgeColor = (rating?: string) => {
     switch (rating?.toUpperCase()) {
       case 'CRITICAL':
@@ -340,8 +370,7 @@ export const AskMarisAiModal: React.FC<AskMarisAiModalProps> = ({ isOpen, onClos
                   boxShadow: '0 2px 10px rgba(0,0,0,0.02)',
                 }}
               >
-                {typeof result.answer === 'string' ? (
-                  result.answer.split('\n').filter((l: string) => l.trim() !== '').map((line: string, i: number) => {
+                {getCleanAnswerText(result.answer).split('\n').filter((l: string) => l.trim() !== '').map((line: string, i: number) => {
                     const trimmed = line.trim();
                     if (trimmed.startsWith('###')) {
                       return <h4 key={i} style={{ margin: '12px 0 6px', fontSize: '1.05rem', color: '#000' }}>{trimmed.replace(/^###\s*/, '')}</h4>;
@@ -355,10 +384,7 @@ export const AskMarisAiModal: React.FC<AskMarisAiModalProps> = ({ isOpen, onClos
                       );
                     }
                     return <p key={i} style={{ margin: '0 0 8px' }}>{trimmed}</p>;
-                  })
-                ) : (
-                  JSON.stringify(result.answer)
-                )}
+                  })}
               </div>
 
               {/* Explainable Reasoning Callout Box */}

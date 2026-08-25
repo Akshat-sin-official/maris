@@ -51,8 +51,8 @@ export const PortalMarisAiPage: React.FC = () => {
       const reasoningSteps = Array.isArray(res.agentTrace)
         ? res.agentTrace.map((t: any) => `${t.agent}: ${t.action}`)
         : Array.isArray(res.explanation)
-        ? res.explanation
-        : ['Query processed via Google Gemini AI Engine.'];
+          ? res.explanation
+          : ['Query processed via Google Gemini AI Engine.'];
 
       const newResponse: AiResponsePayload = {
         query: qText,
@@ -67,22 +67,22 @@ export const PortalMarisAiPage: React.FC = () => {
         ],
         sources: res.sources
           ? res.sources.map((s: any) => ({
-              name: s.title || s.name || s.id || 'Live Sensor Stream',
-              type: s.type || 'LIVE_DATA',
-              timestamp: 'Just now',
-              confidence: 0.92,
-            }))
+            name: s.title || s.name || s.id || 'Live Sensor Stream',
+            type: s.type || 'LIVE_DATA',
+            timestamp: 'Just now',
+            confidence: 0.92,
+          }))
           : [
-              { name: 'Google Gemini AI Engine', type: 'INTELLIGENCE', timestamp: 'Just now', confidence: 0.95 },
-              { name: 'OpenWeatherMap Coastal Feed', type: 'WEATHER', timestamp: 'Live Feed', confidence: 0.91 },
-              { name: 'INCOIS ERDDAP Marine System', type: 'OCEANOGRAPHY', timestamp: 'Live Feed', confidence: 0.93 },
-            ],
+            { name: 'Google Gemini AI Engine', type: 'INTELLIGENCE', timestamp: 'Just now', confidence: 0.95 },
+            { name: 'OpenWeatherMap Coastal Feed', type: 'WEATHER', timestamp: 'Live Feed', confidence: 0.91 },
+            { name: 'INCOIS ERDDAP Marine System', type: 'OCEANOGRAPHY', timestamp: 'Live Feed', confidence: 0.93 },
+          ],
         mapContext: res.mapContext
           ? {
-              locationName: res.mapContext.locationName || 'Gulf of Mannar Sector',
-              coordinates: res.mapContext.center || res.mapContext.coordinates || [9.28, 79.31],
-              radiusKm: res.mapContext.radiusKm || 25,
-            }
+            locationName: res.mapContext.locationName || 'Gulf of Mannar Sector',
+            coordinates: res.mapContext.center || res.mapContext.coordinates || [9.28, 79.31],
+            radiusKm: res.mapContext.radiusKm || 25,
+          }
           : undefined,
       };
 
@@ -158,7 +158,7 @@ export const PortalMarisAiPage: React.FC = () => {
 
           <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#15803d', backgroundColor: '#dcfce7', padding: '4px 12px', borderRadius: '9999px', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#22c55e' }} />
-            LIVE GEMINI API CONNECTED
+            LIVE MARIS AI
           </span>
         </div>
       </div>
@@ -218,7 +218,7 @@ export const PortalMarisAiPage: React.FC = () => {
             ) : (
               <>
                 <Send size={16} />
-                <span>Query Gemini AI</span>
+                <span>Query Maris AI</span>
               </>
             )}
           </button>

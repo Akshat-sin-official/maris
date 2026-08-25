@@ -17,6 +17,37 @@ export class GeminiService {
     return !!this.apiKey && this.apiKey.trim().length > 0;
   }
 
+  private sanitizeAnswerText(raw: any): string {
+    if (!raw) return '';
+    let text = typeof raw === 'string' ? raw.trim() : JSON.stringify(raw);
+
+    // Recursively unwrap nested JSON and strip side quotes
+    let depth = 0;
+    while (depth < 5 && typeof text === 'string') {
+      text = text.trim();
+      if (text.startsWith('"') && text.endsWith('"') && text.length > 1) {
+        text = text.slice(1, -1).trim();
+        depth++;
+        continue;
+      }
+      if (text.startsWith('{') && text.endsWith('}')) {
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed.answer) {
+            text = typeof parsed.answer === 'string' ? parsed.answer : JSON.stringify(parsed.answer);
+            depth++;
+            continue;
+          }
+        } catch {
+          break;
+        }
+      }
+      break;
+    }
+
+    return text.replace(/\\n/g, '\n').replace(/\\"/g, '"').trim();
+  }
+
   /**
    * Synthesize marine intelligence context into explainable analysis using Gemini with model fallback
    */
@@ -52,7 +83,6 @@ Analyze this operational situation and return the JSON object.`;
 
     let lastError: any = null;
 
-    // Try candidate models sequentially until one succeeds
     for (const modelName of this.candidateModels) {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${this.apiKey}`;
       try {
@@ -83,7 +113,7 @@ Analyze this operational situation and return the JSON object.`;
           const errorText = await response.text().catch(() => '');
           logger.warn(`Gemini model ${modelName} returned HTTP ${response.status}: ${errorText}. Trying next candidate model...`);
           lastError = new Error(`Gemini model ${modelName} request failed [HTTP ${response.status}]: ${errorText}`);
-          continue; // Try next model in candidate list
+          continue;
         }
 
         const data: any = await response.json();
@@ -106,25 +136,10 @@ Analyze this operational situation and return the JSON object.`;
           parsed = { answer: rawText };
         }
 
-        // Check if answer is a nested stringified JSON object
-        if (typeof parsed.answer === 'string' && parsed.answer.trim().startsWith('{')) {
-          try {
-            const nested = JSON.parse(parsed.answer);
-            if (nested.answer) {
-              parsed.answer = nested.answer;
-              if (nested.riskRating) parsed.riskRating = nested.riskRating;
-              if (nested.confidenceScore) parsed.confidenceScore = nested.confidenceScore;
-              if (nested.evidence) parsed.evidence = nested.evidence;
-              if (nested.whyFlagged) parsed.whyFlagged = nested.whyFlagged;
-              if (nested.recommendations) parsed.recommendations = nested.recommendations;
-            }
-          } catch (e) {
-            // Ignore nested parse errors
-          }
-        }
+        const cleanAnswer = this.sanitizeAnswerText(parsed.answer || rawText);
 
         return {
-          answer: typeof parsed.answer === 'string' ? parsed.answer : JSON.stringify(parsed.answer || rawText),
+          answer: cleanAnswer,
           riskRating: parsed.riskRating || 'LOW',
           confidenceScore: parsed.confidenceScore || 0.90,
           evidence: Array.isArray(parsed.evidence) ? parsed.evidence : [],

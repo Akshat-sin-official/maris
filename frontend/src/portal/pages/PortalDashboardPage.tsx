@@ -16,7 +16,7 @@ import { socketService } from '../services/socket';
 export const PortalDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  
+
   const [incidentsList, setIncidentsList] = useState<any[]>([]);
   const [observationsList, setObservationsList] = useState<any[]>([]);
   const [tipsList, setTipsList] = useState<any[]>([]);
@@ -253,8 +253,8 @@ export const PortalDashboardPage: React.FC = () => {
       },
       {
         title: 'AGENTIC AI REASONING',
-        value: 'GROK 4.6 LIVE',
-        subtext: 'xAI Agentic Mesh Connected',
+        value: 'MARIS AI 1.0',
+        subtext: 'Agentic Mesh Connected',
         icon: Bot,
         color: '#fa2edf',
         bgColor: '#fdf4ff',
@@ -320,7 +320,7 @@ export const PortalDashboardPage: React.FC = () => {
           }}
         >
           <Sparkles size={16} color="#fa2edf" />
-          <span>Ask MARIS Grok AI</span>
+          <span>Ask MARIS AI</span>
         </button>
       </div>
 
