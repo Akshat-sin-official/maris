@@ -21,7 +21,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   };
 
   if (userToken) {
-    headers['Authorization'] = `Bearer ${userToken}`;
+    headers.Authorization = `Bearer ${userToken}`;
   }
 
   const url = `${ENV.API_BASE_URL}${endpoint}`;

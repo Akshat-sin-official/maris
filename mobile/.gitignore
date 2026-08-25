@@ -73,3 +73,24 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# React Native Generated Bundles & Assets
+android/app/src/main/assets/index.android.bundle*
+android/app/src/main/res/drawable-*
+android/app/src/main/res/raw
+
+# Environment & Config
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Metro cache & logs
+.metro/
+*.log
+
+# Build Outputs & APKs
+*.apk
+*.aab
+
