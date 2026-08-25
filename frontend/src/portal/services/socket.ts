@@ -11,7 +11,7 @@ export const socketService = {
 
     if (socket) return;
 
-    socket = io('http://localhost:3000', {
+    socket = io('http://localhost:3001', {
       auth: { token },
       transports: ['websocket', 'polling'],
     });

@@ -115,9 +115,14 @@ export async function createIncident(req: AuthenticatedRequest, res: Response, n
       },
     ];
 
+    const clientId =
+      (req.body.clientId as string) ||
+      `CASE-MARIS-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
     const incident = await Incident.create({
       orgId,
       creatorId,
+      clientId,
       title,
       description,
       priority,
