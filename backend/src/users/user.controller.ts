@@ -112,17 +112,18 @@ export async function createUser(req: AuthenticatedRequest, res: Response, next:
     }
 
     const { email, password, name, role, organization, badgeNumber } = createUserSchema.parse(req.body);
+    const cleanEmail = email.toLowerCase().trim();
 
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    const existingUser = await User.findOne({ email: cleanEmail });
     if (existingUser) {
       throw new ValidationError('Email is already registered');
     }
 
     const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
+    const passwordHash = await bcrypt.hash(password.trim(), salt);
 
     const newUser = await User.create({
-      email: email.toLowerCase(),
+      email: cleanEmail,
       passwordHash,
       name,
       role,

@@ -27,29 +27,35 @@ export const PortalFieldPage: React.FC = () => {
     const loadLiveObservations = async () => {
       try {
         const data = await api.get('/observations');
-        const obsList = Array.isArray(data) ? data : data.data || [];
+        const raw = data.data?.observations || data.data || data;
+        const obsList = Array.isArray(raw) ? raw : (Array.isArray(raw?.observations) ? raw.observations : []);
         const mapped = obsList.map((obs: any) => ({
           id: obs.id || obs._id,
           clientId: obs.clientId || 'CLIENT-LIVE-001',
-          observerName: obs.creator?.name || 'Coastal Observer',
-          observerRole: obs.creator?.role || 'Coastal Officer',
-          category: obs.incidentType || 'VESSEL_ANOMALY',
-          title: obs.description?.split('\n')[0] || 'Unidentified Marine Observation',
-          notes: obs.description || '',
-          coordinates: obs.location?.coordinates ? [obs.location.coordinates[1], obs.location.coordinates[0]] : [9.18, 79.25],
+          observerName: obs.observerName || obs.creator?.name || 'Coastal Observer',
+          observerRole: obs.observerRole || obs.creator?.role || 'Coastal Officer',
+          category: obs.category || obs.incidentType || 'VESSEL_ANOMALY',
+          title: obs.title || obs.description?.split('\n')[0] || 'Unidentified Marine Observation',
+          notes: obs.notes || obs.description || '',
+          coordinates: obs.coordinates ? [obs.coordinates[0], obs.coordinates[1]] : obs.location?.coordinates ? [obs.location.coordinates[1], obs.location.coordinates[0]] : [9.18, 79.25],
           locationName: obs.locationName || 'Indian Territorial Waters',
           timestamp: obs.timestamp || obs.createdAt || new Date().toISOString(),
           syncState: 'SYNCED',
-          verificationStatus: obs.verificationState || 'UNDER_REVIEW',
-          confidenceScore: obs.confidence || 0.85,
+          verificationStatus: obs.verificationStatus || obs.verificationState || 'UNDER_REVIEW',
+          confidenceScore: obs.confidenceScore || obs.confidence || 85,
         }));
         setObservations(mapped);
       } catch (err) {
         console.warn('Failed to load live observations from backend:', err);
+        setObservations([]);
       }
     };
 
     loadLiveObservations();
+
+    const handleModeChange = () => loadLiveObservations();
+    window.addEventListener('maris:simulated_mode_changed', handleModeChange);
+    return () => window.removeEventListener('maris:simulated_mode_changed', handleModeChange);
   }, []);
 
   const handleSimulateSync = async () => {

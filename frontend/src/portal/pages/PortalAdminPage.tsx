@@ -56,8 +56,16 @@ export const PortalAdminPage: React.FC = () => {
   useEffect(() => {
     fetchUsers();
     fetchLiveTelemetry();
+    const handleModeChange = () => {
+      fetchUsers();
+      fetchLiveTelemetry();
+    };
+    window.addEventListener('maris:simulated_mode_changed', handleModeChange);
     const interval = setInterval(fetchLiveTelemetry, 20000);
-    return () => clearInterval(interval);
+    return () => {
+      window.removeEventListener('maris:simulated_mode_changed', handleModeChange);
+      clearInterval(interval);
+    };
   }, []);
 
   const handleCreateUser = async (e: React.FormEvent) => {
@@ -69,15 +77,17 @@ export const PortalAdminPage: React.FC = () => {
 
     try {
       const payload = {
-        name: newName,
-        email: newEmail,
-        password: newPassword,
+        name: newName.trim(),
+        email: newEmail.trim().toLowerCase(),
+        password: newPassword.trim(),
         role: newRole,
         organization: newOrg,
         badgeNumber: newBadge || `MARIS-${Date.now().toString().slice(-4)}`,
       };
 
-      await api.post('/users', payload);
+      const res = await api.post('/users', payload);
+      const createdUser = res.data?.user || { ...payload, _id: `usr-${Date.now()}`, isActive: true };
+
       setSuccessMessage(`Successfully created user ${newName} with role ${newRole}`);
       setTimeout(() => setSuccessMessage(null), 4000);
 
@@ -85,6 +95,8 @@ export const PortalAdminPage: React.FC = () => {
       setNewName('');
       setNewEmail('');
       setNewPassword('password123');
+
+      setUsersList((prev) => [createdUser, ...(Array.isArray(prev) ? prev : []).filter((u) => u.email !== createdUser.email)]);
       fetchUsers();
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to create new user');

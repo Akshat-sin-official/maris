@@ -15,6 +15,8 @@ import { agentRouter } from './agents/agent.router';
 import { tipRouter } from './incidents/tip.router';
 import { reportRouter } from './reports/report.router';
 
+import { logger } from './config/logger';
+
 const app = express();
 
 // Standard middlewares
@@ -28,6 +30,19 @@ app.use(
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Enterprise HTTP Request Logging Middleware
+app.use((req, res, next) => {
+  const start = performance.now();
+  res.on('finish', () => {
+    const duration = Math.round(performance.now() - start);
+    const statusCode = res.statusCode;
+    const method = req.method;
+    const url = req.originalUrl || req.url;
+    logger.http(`${method.padEnd(6)} ${url} ${statusCode} - ${duration}ms`);
+  });
+  next();
+});
 
 // API v1 Router
 const v1Router = express.Router();

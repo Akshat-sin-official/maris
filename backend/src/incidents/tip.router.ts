@@ -14,9 +14,20 @@ const tipRouter = express.Router();
 tipRouter.post('/submit', submitTip);
 tipRouter.get('/track/:tipsterId', trackTipStatus);
 
-// Protected Control Room routes (auth + RBAC required: CONTROL_ROOM_OPERATOR or ADMIN)
-tipRouter.get('/control-room', authMiddleware, requireRole('CONTROL_ROOM_OPERATOR', 'ADMIN'), listControlRoomTips);
-tipRouter.patch('/:id/status', authMiddleware, requireRole('CONTROL_ROOM_OPERATOR', 'ADMIN'), updateTipStatus);
-tipRouter.post('/:id/convert-to-incident', authMiddleware, requireRole('CONTROL_ROOM_OPERATOR', 'ADMIN'), convertTipToIncident);
+const staffRoles = [
+  'CONTROL_ROOM_OPERATOR',
+  'CONTROL_ROOM',
+  'SUPERVISOR',
+  'RESEARCHER',
+  'FIELD_OFFICER',
+  'COASTAL_OFFICER',
+  'ADMIN',
+  'ORG_ADMIN',
+];
+
+// Protected Control Room routes (auth + RBAC required)
+tipRouter.get('/control-room', authMiddleware, requireRole(...staffRoles), listControlRoomTips);
+tipRouter.patch('/:id/status', authMiddleware, requireRole(...staffRoles), updateTipStatus);
+tipRouter.post('/:id/convert-to-incident', authMiddleware, requireRole(...staffRoles), convertTipToIncident);
 
 export { tipRouter };

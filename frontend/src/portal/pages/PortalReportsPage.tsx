@@ -45,10 +45,12 @@ export const PortalReportsPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await api.get('/reports');
-      const data = res.data || (Array.isArray(res) ? res : []);
+      const raw = res.data?.reports || res.data || res;
+      const data = Array.isArray(raw) ? raw : (Array.isArray(raw?.reports) ? raw.reports : []);
       setReportsList(data);
     } catch (err) {
       console.warn('Failed to fetch research reports from backend:', err);
+      setReportsList([]);
     } finally {
       setLoading(false);
     }
@@ -56,6 +58,9 @@ export const PortalReportsPage: React.FC = () => {
 
   useEffect(() => {
     fetchReports();
+    const handleModeChange = () => fetchReports();
+    window.addEventListener('maris:simulated_mode_changed', handleModeChange);
+    return () => window.removeEventListener('maris:simulated_mode_changed', handleModeChange);
   }, []);
 
   const openCreateModal = () => {
@@ -129,7 +134,7 @@ export const PortalReportsPage: React.FC = () => {
 
   const isAuthorRole = ['RESEARCHER', 'SUPERVISOR', 'ADMIN', 'ORG_ADMIN', 'CONTROL_ROOM_OPERATOR', 'CONTROL_ROOM'].includes(user?.role || '');
 
-  const filteredReports = reportsList.filter((r) => {
+  const filteredReports = (Array.isArray(reportsList) ? reportsList : []).filter((r) => {
     if (activeTab === 'DRAFT') return r.status === 'DRAFT';
     if (activeTab === 'PUBLISHED') return r.status === 'PUBLISHED';
     return true;

@@ -15,7 +15,12 @@ async function startServer() {
     await connectDatabase();
 
     server.listen(env.PORT, () => {
-      logger.info(`🚀 MARIS Server running on port ${env.PORT} in [${env.NODE_ENV}] mode`);
+      logger.info(`===========================================================`);
+      logger.info(`🌊 MARIS Marine Intelligence Platform [${env.NODE_ENV.toUpperCase()}]`);
+      logger.info(`🌐 HTTP Server : http://localhost:${env.PORT}/api/v1`);
+      logger.info(`⚡ Socket.IO   : Realtime Engine Active`);
+      logger.info(`🗄️  Database    : MongoDB Atlas Connected`);
+      logger.info(`===========================================================`);
     });
   } catch (error) {
     logger.error('CRITICAL: Failed to start MARIS backend server', error);

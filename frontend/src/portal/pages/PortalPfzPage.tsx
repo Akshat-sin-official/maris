@@ -11,27 +11,36 @@ export const PortalPfzPage: React.FC = () => {
   useEffect(() => {
     const loadLivePFZ = async () => {
       try {
-        const intelRes = await api.get('/intelligence/lookup?lat=9.28&lng=79.31');
-        const pfzList = intelRes.pfz || intelRes.data?.pfz || [];
+        const pfzRes = await api.get('/pfz').catch(() => null);
+        const bulletinsData = pfzRes?.data?.bulletins || pfzRes?.bulletins || (Array.isArray(pfzRes) ? pfzRes : null);
 
-        if (Array.isArray(pfzList) && pfzList.length > 0) {
-          const mappedBulletins: PfzBulletin[] = pfzList.map((pfz: any, idx: number) => ({
-            id: pfz.zoneId || `PFZ-LIVE-${idx + 1}`,
-            title: `Live Advisory Zone ${idx + 1}`,
-            zoneName: `Gulf of Mannar & Rameswaram Slope`,
-            coordinates: [9.28 + idx * 0.05, 79.31 - idx * 0.04],
-            distFromCoastKm: Math.round(14.5 + idx * 3.5),
-            sstCelsius: intelRes.marineConditions?.waterTemp || 28.4,
-            chlorophyllMgM3: pfz.chlorophyll || 0.68,
-            depthMeters: 48 + idx * 12,
-            targetSpecies: ['Yellowfin Tuna', 'Indian Mackerel', 'Sardinella'],
-            validityWindow: 'Valid for next 24 Hours',
-            potentialScore: Math.round(92 - idx * 6),
-            recommendedCraft: 'Motorized Crafts (IB / OBM)',
-            status: 'ACTIVE',
-          }));
-          setBulletins(mappedBulletins);
-          setSelectedPfz(mappedBulletins[0]);
+        if (Array.isArray(bulletinsData) && bulletinsData.length > 0) {
+          setBulletins(bulletinsData);
+          setSelectedPfz(bulletinsData[0]);
+        } else {
+          const intelRes = await api.get('/intelligence/lookup?lat=9.28&lng=79.31');
+          const rawPfz = intelRes.pfz || intelRes.data?.pfz;
+          const pfzList = Array.isArray(rawPfz) ? rawPfz : rawPfz ? [rawPfz] : [];
+
+          if (pfzList.length > 0) {
+            const mappedBulletins: PfzBulletin[] = pfzList.map((pfz: any, idx: number) => ({
+              id: pfz.id || pfz.zoneId || `PFZ-LIVE-${idx + 1}`,
+              title: pfz.title || `Live Advisory Zone ${idx + 1}`,
+              zoneName: pfz.zoneName || `Gulf of Mannar & Rameswaram Slope`,
+              coordinates: pfz.coordinates || [9.28 + idx * 0.05, 79.31 - idx * 0.04],
+              distFromCoastKm: pfz.distFromCoastKm || Math.round(14.5 + idx * 3.5),
+              sstCelsius: pfz.sstCelsius || intelRes.marineConditions?.waterTemp || 28.4,
+              chlorophyllMgM3: pfz.chlorophyllMgM3 || pfz.chlorophyll || 0.68,
+              depthMeters: pfz.depthMeters || 48 + idx * 12,
+              targetSpecies: pfz.targetSpecies || ['Yellowfin Tuna', 'Indian Mackerel', 'Sardinella'],
+              validityWindow: pfz.validityWindow || 'Valid for next 24 Hours',
+              potentialScore: pfz.potentialScore || Math.round(92 - idx * 6),
+              recommendedCraft: pfz.recommendedCraft || 'Motorized Crafts (IB / OBM)',
+              status: pfz.status || 'ACTIVE',
+            }));
+            setBulletins(mappedBulletins);
+            setSelectedPfz(mappedBulletins[0]);
+          }
         }
       } catch (err) {
         console.warn('Failed to load live PFZ intelligence from backend:', err);
@@ -39,6 +48,10 @@ export const PortalPfzPage: React.FC = () => {
     };
 
     loadLivePFZ();
+
+    const handleModeChange = () => loadLivePFZ();
+    window.addEventListener('maris:simulated_mode_changed', handleModeChange);
+    return () => window.removeEventListener('maris:simulated_mode_changed', handleModeChange);
   }, []);
 
   return (

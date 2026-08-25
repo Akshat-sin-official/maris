@@ -12,33 +12,34 @@ const levels = {
 const colors = {
   error: 'red',
   warn: 'yellow',
-  info: 'green',
+  info: 'cyan',
   http: 'magenta',
-  debug: 'white',
+  debug: 'gray',
 };
 
 winston.addColors(colors);
 
-const format = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
+const developmentFormat = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
   winston.format.errors({ stack: true }),
-  env.NODE_ENV === 'development'
-    ? winston.format.combine(
-        winston.format.colorize({ all: true }),
-        winston.format.printf(
-          (info) => `[${info.timestamp}] ${info.level}: ${info.message}${info.stack ? `\n${info.stack}` : ''}`
-        )
-      )
-    : winston.format.json()
+  winston.format.colorize({ all: false, level: true }),
+  winston.format.printf((info) => {
+    const levelTag = info.level.toUpperCase().padEnd(7);
+    const timeStr = info.timestamp;
+    const stackStr = info.stack ? `\n    ${info.stack}` : '';
+    return `[${timeStr}] ${levelTag} | ${info.message}${stackStr}`;
+  })
 );
 
-const transports = [
-  new winston.transports.Console()
-];
+const productionFormat = winston.format.combine(
+  winston.format.timestamp(),
+  winston.format.errors({ stack: true }),
+  winston.format.json()
+);
 
 export const logger = winston.createLogger({
-  level: env.LOG_LEVEL,
+  level: env.LOG_LEVEL || 'info',
   levels,
-  format,
-  transports,
+  format: env.NODE_ENV === 'production' ? productionFormat : developmentFormat,
+  transports: [new winston.transports.Console()],
 });

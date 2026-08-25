@@ -120,18 +120,19 @@ export async function register(req: Request, res: Response, next: NextFunction):
 export async function login(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { email, password } = loginSchema.parse(req.body);
+    const cleanEmail = email.toLowerCase().trim();
 
     // 1. Fetch user including passwordHash
-    const user = await User.findOne({ email, isActive: true }).select('+passwordHash');
+    const user = await User.findOne({ email: cleanEmail, isActive: true }).select('+passwordHash');
     if (!user) {
-      await writeAuditLog('LOGIN_FAILURE', email, null, req, { reason: 'User not found or inactive' });
+      await writeAuditLog('LOGIN_FAILURE', cleanEmail, null, req, { reason: 'User not found or inactive' });
       throw new UnauthorizedError('Invalid credentials');
     }
 
     // 2. Verify password
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
-      await writeAuditLog('LOGIN_FAILURE', email, user._id.toString(), req, { reason: 'Incorrect password' });
+      await writeAuditLog('LOGIN_FAILURE', cleanEmail, user._id.toString(), req, { reason: 'Incorrect password' });
       throw new UnauthorizedError('Invalid credentials');
     }
 

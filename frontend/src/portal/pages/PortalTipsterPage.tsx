@@ -41,10 +41,12 @@ export const PortalTipsterPage: React.FC = () => {
     setIsLoadingTips(true);
     try {
       const res = await api.get('/tips/control-room');
-      const data = Array.isArray(res) ? res : res.data || [];
+      const raw = res.data?.tips || res.data || res;
+      const data = Array.isArray(raw) ? raw : (Array.isArray(raw?.tips) ? raw.tips : []);
       setControlRoomTips(data);
     } catch (err: any) {
       console.warn('Failed to load control room tips from backend:', err);
+      setControlRoomTips([]);
     } finally {
       setIsLoadingTips(false);
     }
@@ -60,9 +62,16 @@ export const PortalTipsterPage: React.FC = () => {
       }
     };
 
+    const handleModeChange = () => {
+      fetchControlRoomTips();
+    };
+
     socketService.addListener(handleTipEvent);
+    window.addEventListener('maris:simulated_mode_changed', handleModeChange);
+
     return () => {
       socketService.removeListener(handleTipEvent);
+      window.removeEventListener('maris:simulated_mode_changed', handleModeChange);
     };
   }, []);
 
@@ -272,12 +281,12 @@ export const PortalTipsterPage: React.FC = () => {
             </button>
           </div>
 
-          {controlRoomTips.length === 0 ? (
+          {(!Array.isArray(controlRoomTips) || controlRoomTips.length === 0) ? (
             <div style={{ padding: '40px', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid rgba(0,0,0,0.08)', textAlign: 'center', color: '#6b7280' }}>
               No confidential tips logged yet in MongoDB Atlas. Submit a tip to view real-time triage.
             </div>
           ) : (
-            controlRoomTips.map((tip) => {
+            (Array.isArray(controlRoomTips) ? controlRoomTips : []).map((tip) => {
               const isHighScore = (tip.genuinenessScore || 50) >= 75;
 
               return (

@@ -58,14 +58,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email?: string, password?: string, role: UserRole = 'Control Room Operator') => {
     try {
+      const reqEmail = (email && email.trim()) ? email.trim() : 'operator@maris.gov.in';
+      const reqPassword = (password && password.trim()) ? password.trim() : 'password123';
+
       const res = await fetch('/api/v1/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: email || 'operator@maris.gov.in',
-          password: password || 'password123',
+          email: reqEmail,
+          password: reqPassword,
         }),
       });
 

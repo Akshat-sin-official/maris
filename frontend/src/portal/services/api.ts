@@ -71,7 +71,7 @@ async function getHeaders(): Promise<Record<string, string>> {
         }
       }
     } catch (err) {
-      console.warn('Auto-token issuance check failed:', err);
+      console.warn('Auto-token issuance check notice:', err);
     }
   }
 
@@ -90,69 +90,101 @@ export const api = {
       return getSimulatedResponse(endpoint);
     }
 
+    const headers = await getHeaders();
+    const res = await fetch(`${BASE_URL}${endpoint}`, {
+      headers,
+    });
+
+    const bodyText = await res.text();
+    let bodyJson: any;
     try {
-      const headers = await getHeaders();
-      const res = await fetch(`${BASE_URL}${endpoint}`, {
-        headers,
-      });
-      if (!res.ok) {
-        console.warn(`GET ${endpoint} returned status ${res.status}. Falling back to simulated data.`);
-        return getSimulatedResponse(endpoint);
-      }
-      return await res.json();
-    } catch (err) {
-      console.warn(`GET ${endpoint} network error. Falling back to simulated baseline data:`, err);
-      return getSimulatedResponse(endpoint);
+      bodyJson = JSON.parse(bodyText);
+    } catch {
+      bodyJson = { message: bodyText };
     }
+
+    if (!res.ok) {
+      console.warn(`Live API GET ${endpoint} returned status ${res.status}:`, bodyJson);
+      // Return JSON payload if available so page components can handle status safely
+      return bodyJson;
+    }
+    return bodyJson;
   },
 
   async post(endpoint: string, data: any) {
+    const cleanEndpoint = endpoint.split('?')[0];
+
     if (isSimulatedMode()) {
+      if (cleanEndpoint === '/users') {
+        const newUsr = {
+          _id: data._id || `usr-sim-${Date.now()}`,
+          name: data.name,
+          email: data.email,
+          role: data.role,
+          organization: data.organization || 'MARIS Command Center',
+          badgeNumber: data.badgeNumber || `MARIS-${Date.now().toString().slice(-4)}`,
+          isActive: true,
+        };
+        SIMULATED_USERS.unshift(newUsr);
+        return { status: 'success', message: 'User created successfully', data: { user: newUsr } };
+      }
       return { status: 'success', message: 'Simulated operation recorded successfully', data };
     }
 
+    const headers = await getHeaders();
+    const res = await fetch(`${BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+    });
+
+    const bodyText = await res.text();
+    let bodyJson: any;
     try {
-      const headers = await getHeaders();
-      const res = await fetch(`${BASE_URL}${endpoint}`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) {
-        const errText = await res.text().catch(() => '');
-        throw new Error(`POST ${endpoint} failed: ${res.statusText} ${errText}`);
-      }
-      return await res.json();
-    } catch (err) {
-      if (isSimulatedMode()) {
-        return { status: 'success', data };
-      }
-      throw err;
+      bodyJson = JSON.parse(bodyText);
+    } catch {
+      bodyJson = { message: bodyText };
     }
+
+    if (!res.ok) {
+      throw new Error(bodyJson.message || `POST ${endpoint} failed with HTTP ${res.status}`);
+    }
+    return bodyJson;
   },
 
   async patch(endpoint: string, data: any) {
+    const cleanEndpoint = endpoint.split('?')[0];
+
     if (isSimulatedMode()) {
+      if (cleanEndpoint.startsWith('/users/')) {
+        const userId = cleanEndpoint.split('/')[2];
+        const usrIndex = SIMULATED_USERS.findIndex((u) => u._id === userId || (u as any).id === userId);
+        if (usrIndex !== -1) {
+          SIMULATED_USERS[usrIndex] = { ...SIMULATED_USERS[usrIndex], ...data };
+        }
+      }
       return { status: 'success', message: 'Simulated patch recorded', data };
     }
 
+    const headers = await getHeaders();
+    const res = await fetch(`${BASE_URL}${endpoint}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(data),
+    });
+
+    const bodyText = await res.text();
+    let bodyJson: any;
     try {
-      const headers = await getHeaders();
-      const res = await fetch(`${BASE_URL}${endpoint}`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) {
-        throw new Error(`PATCH ${endpoint} failed: ${res.statusText}`);
-      }
-      return await res.json();
-    } catch (err) {
-      if (isSimulatedMode()) {
-        return { status: 'success', data };
-      }
-      throw err;
+      bodyJson = JSON.parse(bodyText);
+    } catch {
+      bodyJson = { message: bodyText };
     }
+
+    if (!res.ok) {
+      throw new Error(bodyJson.message || `PATCH ${endpoint} failed with HTTP ${res.status}`);
+    }
+    return bodyJson;
   },
 
   async delete(endpoint: string) {
@@ -165,9 +197,18 @@ export const api = {
       method: 'DELETE',
       headers,
     });
-    if (!res.ok) {
-      throw new Error(`DELETE ${endpoint} failed: ${res.statusText}`);
+
+    const bodyText = await res.text();
+    let bodyJson: any;
+    try {
+      bodyJson = JSON.parse(bodyText);
+    } catch {
+      bodyJson = { message: bodyText };
     }
-    return res.json();
+
+    if (!res.ok) {
+      throw new Error(bodyJson.message || `DELETE ${endpoint} failed with HTTP ${res.status}`);
+    }
+    return bodyJson;
   },
 };

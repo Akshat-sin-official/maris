@@ -19,7 +19,12 @@ export const PortalMarineDataPage: React.FC = () => {
         console.warn('Failed to load live marine data feeds:', err);
       }
     };
+
     fetchLiveIntelligence();
+
+    const handleModeChange = () => fetchLiveIntelligence();
+    window.addEventListener('maris:simulated_mode_changed', handleModeChange);
+    return () => window.removeEventListener('maris:simulated_mode_changed', handleModeChange);
   }, []);
 
   const oceanVariables = [
