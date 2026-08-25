@@ -33,6 +33,7 @@ const envSchema = z.object({
   // WDPA Protected Planet — register at api.protectedplanet.net
   WDPA_API_KEY: z.string().optional(),
   ENABLE_LIVE_GEOSPATIAL: z.preprocess((val) => val === 'true' || val === true, z.boolean()).default(false),
+  OVERPASS_TIMEOUT_MS: z.coerce.number().default(12000),
   // Storage Configurations
   STORAGE_PROVIDER: z.enum(['minio', 'local']).default('minio'),
   MINIO_ENDPOINT: z.string().default('127.0.0.1'),

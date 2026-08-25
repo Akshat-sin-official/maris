@@ -603,3 +603,52 @@ export async function deleteEvidence(
     next(error);
   }
 }
+
+export async function uploadStandaloneEvidence(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userContext = req.user;
+    if (!userContext) {
+      throw new ForbiddenError('Access denied: authentication required');
+    }
+
+    const file = req.file;
+    if (!file) {
+      throw new ValidationError('File attachment is required');
+    }
+
+    const mediaType = getMediaType(file.mimetype);
+    const fileHash = computeSha256(file.buffer);
+    const storageKey = `evidence-${Date.now()}-${file.originalname}`;
+
+    await activeProviderRef.current.upload(storageKey, file.buffer, file.mimetype);
+
+    const uploadedBy = new mongoose.Types.ObjectId(userContext.userId);
+    const orgId = userContext.orgId ? new mongoose.Types.ObjectId(userContext.orgId) : null;
+
+    const evidence = await Evidence.create({
+      orgId,
+      incidentId: null,
+      mediaType,
+      url: storageKey,
+      fileHash,
+      capturedAt: new Date(),
+      source: 'DIRECT_UPLOAD',
+      uploadedBy,
+      syncState: 'SYNCED',
+    });
+
+    res.status(201).json({
+      status: 'success',
+      data: {
+        evidence,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+

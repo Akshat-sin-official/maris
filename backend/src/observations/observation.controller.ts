@@ -9,14 +9,14 @@ import { notifyObservationReceived, notifyVerificationCompleted } from '../realt
 
 // Validation Schemas
 export const createObservationSchema = z.object({
-  category: z.enum(['sst', 'chlorophyll', 'vessel_sighting', 'wildlife', 'weather_hazard']),
+  category: z.enum(['sst', 'chlorophyll', 'vessel_sighting', 'wildlife', 'weather_hazard']).default('vessel_sighting'),
   value: z.string().min(1, 'Value is required'),
-  confidence: z.number().min(0.0, 'Confidence cannot be less than 0.0').max(1.0, 'Confidence cannot be greater than 1.0'),
+  confidence: z.number().min(0.0, 'Confidence cannot be less than 0.0').max(1.0, 'Confidence cannot be greater than 1.0').default(0.85),
   location: z.object({
-    type: z.enum(['Point']),
+    type: z.enum(['Point']).default('Point'),
     coordinates: z.array(z.number()).length(2), // [lng, lat]
   }),
-  timestamp: z.coerce.date(),
+  timestamp: z.coerce.date().default(() => new Date()),
   evidenceIds: z.array(z.string()).optional(),
 });
 

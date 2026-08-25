@@ -1,3 +1,4 @@
+import { env } from '../../config/env';
 import { GeospatialProvider } from '../interfaces';
 import { GeoFence } from '../types';
 
@@ -24,11 +25,17 @@ export class OverpassGeospatialProvider implements GeospatialProvider {
   name = 'openstreetmap_overpass';
 
   private readonly endpoint = 'https://overpass-api.de/api/interpreter';
+  private readonly timeoutMs: number;
+
+  constructor(timeoutMs?: number) {
+    this.timeoutMs = timeoutMs ?? env.OVERPASS_TIMEOUT_MS ?? 12000;
+  }
 
   async fetchGeofences(lat: number, lon: number, radiusKm = 200): Promise<GeoFence[]> {
     const radiusM = radiusKm * 1000;
+    const timeoutSec = Math.ceil(this.timeoutMs / 1000);
     const query = `
-[out:json][timeout:10];
+[out:json][timeout:${timeoutSec}];
 (
   relation["boundary"="protected_area"]["protected_area"="marine"](around:${radiusM},${lat},${lon});
   relation["boundary"="protected_area"]["marine"="yes"](around:${radiusM},${lat},${lon});
@@ -38,7 +45,7 @@ out geom;
     `.trim();
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
 
     try {
       const response = await fetch(this.endpoint, {

@@ -60,10 +60,13 @@ let activeWeatherProvider: WeatherProvider =
     : mockWeather;
 
 // 2. Ocean: Open-Meteo Marine (free by default) | Copernicus (key-gated)
+const primaryOcean = new OpenMeteoMarineProvider();
+
+// 2. Ocean: Open-Meteo Marine (free & verified primary) | Copernicus (optional secondary)
 let activeOceanProvider: OceanProvider =
   env.ENABLE_LIVE_COPERNICUS && env.COPERNICUS_USERNAME && env.COPERNICUS_PASSWORD
     ? new CopernicusMarineProvider(env.COPERNICUS_USERNAME, env.COPERNICUS_PASSWORD)
-    : new OpenMeteoMarineProvider();
+    : primaryOcean;
 
 // 3. Alerts: IMD (key-gated) | mock fallback
 let activeAlertProvider: AlertProvider =
@@ -130,8 +133,8 @@ export const weatherService = {
       const data = await provider.fetchWeather(lat, lon);
       cache.set(key, data, 1800000); // 30 minutes TTL
       return data;
-    } catch (error) {
-      logger.warn(`WeatherProvider ${provider.name} failed. Falling back to mock weather.`, error);
+    } catch (error: any) {
+      logger.warn(`WeatherProvider ${provider.name} failed (${error?.message ?? error}). Falling back to mock weather.`);
       return mockWeather.fetchWeather(lat, lon);
     }
   }
@@ -140,7 +143,7 @@ export const weatherService = {
 /**
  * 2. Marine/Ocean Conditions Service
  * Uses Open-Meteo Marine API by default (free, no key required).
- * Falls back to mockOcean only if the active provider throws.
+ * Falls back to Open-Meteo primary if secondary provider fails, then mock.
  */
 export const oceanService = {
   getOceanConditions: async (lat: number, lon: number): Promise<MarineCondition> => {
@@ -152,9 +155,16 @@ export const oceanService = {
       const data = await activeOceanProvider.fetchOceanConditions(lat, lon);
       cache.set(key, data, 1800000); // 30 minutes TTL
       return data;
-    } catch (error) {
-      logger.warn(`OceanProvider ${activeOceanProvider.name} failed. Falling back to mock ocean conditions.`, error);
-      return mockOcean.fetchOceanConditions(lat, lon);
+    } catch (error: any) {
+      logger.warn(`OceanProvider ${activeOceanProvider.name} failed (${error?.message ?? error}). Falling back to Open-Meteo Marine.`);
+      try {
+        const fallbackData = await primaryOcean.fetchOceanConditions(lat, lon);
+        cache.set(key, fallbackData, 1800000);
+        return fallbackData;
+      } catch (fallbackError) {
+        logger.warn(`Primary Open-Meteo Marine also failed. Falling back to mock ocean conditions.`);
+        return mockOcean.fetchOceanConditions(lat, lon);
+      }
     }
   }
 };

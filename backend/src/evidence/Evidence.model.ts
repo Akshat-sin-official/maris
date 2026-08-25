@@ -81,10 +81,9 @@ const EvidenceSchema: Schema = new Schema(
     // Offline sync definitions
     clientId: {
       type: String,
-      default: null,
       index: {
         unique: true,
-        sparse: true, // Prevents unique clashes on null values
+        sparse: true, // Prevents unique clashes when missing
       },
     },
     clientCreatedAt: {

@@ -11,18 +11,27 @@ import { notifyNewIncident, notifyPriorityUpdated, notifyStatusChanged } from '.
 export const createIncidentSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
-  items: z.array(
-    z.object({
-      type: z.enum(['vessel_detection', 'oil_slick', 'unauthorized_entry', 'marine_life_hazard']),
-      location: z.object({
-        type: z.enum(['Point', 'Polygon', 'MultiPolygon']),
-        coordinates: z.any(),
-      }),
-      detectedAt: z.coerce.date(),
-      details: z.record(z.any()).optional(),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).default('LOW'),
+  category: z.string().optional(),
+  location: z
+    .object({
+      type: z.enum(['Point', 'Polygon', 'MultiPolygon']),
+      coordinates: z.any(),
     })
-  ).default([]),
+    .optional(),
+  items: z
+    .array(
+      z.object({
+        type: z.enum(['vessel_detection', 'oil_slick', 'unauthorized_entry', 'marine_life_hazard']),
+        location: z.object({
+          type: z.enum(['Point', 'Polygon', 'MultiPolygon']),
+          coordinates: z.any(),
+        }),
+        detectedAt: z.coerce.date(),
+        details: z.record(z.any()).optional(),
+      })
+    )
+    .default([]),
 });
 
 export const updateIncidentSchema = z.object({
@@ -44,6 +53,7 @@ export const updateIncidentSchema = z.object({
   ]).optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
   assignedTo: z.string().nullable().optional(),
+  note: z.string().optional(),
 });
 
 // Helper for audit logs
@@ -77,7 +87,21 @@ export async function createIncident(req: AuthenticatedRequest, res: Response, n
       throw new ForbiddenError('Access denied: authentication required');
     }
 
-    const { title, description, priority, items } = createIncidentSchema.parse(req.body);
+    const { title, description, priority, items: rawItems, location, category } = createIncidentSchema.parse(req.body);
+
+    let items = rawItems;
+    if (items.length === 0 && location) {
+      const validTypes = ['vessel_detection', 'oil_slick', 'unauthorized_entry', 'marine_life_hazard'];
+      const mappedType = validTypes.includes(category || '') ? (category as any) : 'vessel_detection';
+      items = [
+        {
+          type: mappedType,
+          location,
+          detectedAt: new Date(),
+          details: { description },
+        },
+      ];
+    }
 
     const orgId = userContext.orgId ? new mongoose.Types.ObjectId(userContext.orgId) : null;
     const creatorId = new mongoose.Types.ObjectId(userContext.userId);
@@ -351,6 +375,15 @@ export async function updateIncident(req: AuthenticatedRequest, res: Response, n
         });
         incident.assignedTo = newAssignee;
       }
+    }
+
+    if (updates.note) {
+      incident.timeline.push({
+        eventType: 'RESPONSE_UPDATED',
+        actorId,
+        message: `Investigator Note: ${updates.note}`,
+        timestamp: new Date(),
+      });
     }
 
     await incident.save();

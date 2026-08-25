@@ -10,7 +10,8 @@ import {
   Info,
   Fish,
   Activity,
-  MapPin
+  MapPin,
+  ShieldAlert,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
@@ -115,6 +116,17 @@ export const PortalLiveMapPage: React.FC = () => {
     map.on('click', (e: maplibregl.MapMouseEvent) => {
       const { lat, lng } = e.lngLat;
       handleMapClick(lat, lng);
+    });
+
+    // Handle initial URL query parameters (?lat=...&lon=...)
+    map.on('load', () => {
+      const searchParams = new URLSearchParams(window.location.search);
+      const urlLat = parseFloat(searchParams.get('lat') || '');
+      const urlLon = parseFloat(searchParams.get('lon') || searchParams.get('lng') || '');
+      if (!isNaN(urlLat) && !isNaN(urlLon)) {
+        map.flyTo({ center: [urlLon, urlLat], zoom: 11, essential: true });
+        handleMapClick(urlLat, urlLon);
+      }
     });
 
     return () => {
@@ -532,58 +544,137 @@ export const PortalLiveMapPage: React.FC = () => {
           )}
         </div>
 
-        {/* Toggles */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {Object.keys(layers).map((key) => {
-            const layerKey = key as keyof MapLayersState;
-            const isLive = layerKey === 'liveLocations';
-            return (
-              <label key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', fontSize: '0.8rem' }}>
+        {/* Categorized Layers */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {/* Maritime Category */}
+          <div>
+            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.08em', marginBottom: '6px' }}>
+              MARITIME DOMAIN
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', fontSize: '0.78rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <input
                     type="checkbox"
-                    checked={layers[layerKey]}
-                    onChange={() => setLayers(prev => ({ ...prev, [layerKey]: !prev[layerKey] }))}
-                    style={{ accentColor: isLive ? '#ef4444' : '#00f2fe' }}
+                    checked={layers.liveLocations}
+                    onChange={() => setLayers(prev => ({ ...prev, liveLocations: !prev.liveLocations }))}
+                    style={{ accentColor: '#ef4444' }}
                   />
-                  <span style={{ color: isLive ? '#f87171' : '#fff', fontWeight: isLive ? 700 : 400 }}>
-                    {isLive ? '🔴 Live BigData Beacons' : key.charAt(0).toUpperCase() + key.slice(1)}
-                  </span>
+                  <span style={{ color: '#f87171', fontWeight: 700 }}>🔴 Live Beacons</span>
                 </div>
-                <span style={{ fontSize: '0.68rem', opacity: 0.5 }}>
-                  {loadingStates[key] === 'loading' ? 'Loading...' : 'Active'}
-                </span>
+                <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>{loadingStates.liveLocations === 'loading' ? 'Syncing' : 'Stream'}</span>
               </label>
-            );
-          })}
+
+              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', fontSize: '0.78rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={layers.incidents}
+                    onChange={() => setLayers(prev => ({ ...prev, incidents: !prev.incidents }))}
+                    style={{ accentColor: '#ff0055' }}
+                  />
+                  <span style={{ color: '#fff' }}>🚨 Incidents / Cases</span>
+                </div>
+                <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>DB</span>
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', fontSize: '0.78rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={layers.observations}
+                    onChange={() => setLayers(prev => ({ ...prev, observations: !prev.observations }))}
+                    style={{ accentColor: '#10b981' }}
+                  />
+                  <span style={{ color: '#fff' }}>👁️ Field Sightings</span>
+                </div>
+                <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>DB</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Environment Category */}
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px' }}>
+            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.08em', marginBottom: '6px' }}>
+              OCEANIC ENVIRONMENT
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', fontSize: '0.78rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={layers.pfz}
+                    onChange={() => setLayers(prev => ({ ...prev, pfz: !prev.pfz }))}
+                    style={{ accentColor: '#00f2fe' }}
+                  />
+                  <span style={{ color: '#fff' }}>🐟 PFZ Fishing Advisories</span>
+                </div>
+                <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>Feed</span>
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', fontSize: '0.78rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={layers.alerts}
+                    onChange={() => setLayers(prev => ({ ...prev, alerts: !prev.alerts }))}
+                    style={{ accentColor: '#f59e0b' }}
+                  />
+                  <span style={{ color: '#fff' }}>⚠️ Hazard Alerts</span>
+                </div>
+                <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>Feed</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Infrastructure Category */}
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px' }}>
+            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.08em', marginBottom: '6px' }}>
+              COASTAL & GEOFENCES
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', fontSize: '0.78rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={layers.geofences}
+                    onChange={() => setLayers(prev => ({ ...prev, geofences: !prev.geofences }))}
+                    style={{ accentColor: '#ff0055' }}
+                  />
+                  <span style={{ color: '#fff' }}>🛡️ Sanctuary Boundaries</span>
+                </div>
+                <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>Vector</span>
+              </label>
+            </div>
+          </div>
         </div>
 
         {/* Collapsible Legend */}
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, opacity: 0.7, display: 'block', marginBottom: '8px' }}>LEGEND</span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, opacity: 0.7, display: 'block', marginBottom: '8px' }}>LEGEND & SEMANTICS</span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.72rem' }}>
             {layers.liveLocations && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444', border: '1.5px solid #fff', boxShadow: '0 0 6px #ef4444' }} />
-                <span style={{ color: '#f87171', fontWeight: 700 }}>Live Telemetry (Heartbeat)</span>
+                <span style={{ color: '#f87171', fontWeight: 700 }}>Live Telemetry (LIVE)</span>
               </div>
             )}
             {layers.incidents && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff0055' }} />
-                <span>Critical Incidents</span>
+                <span>Critical Incidents (DATABASE)</span>
               </div>
             )}
             {layers.observations && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ width: '8px', height: '8px', transform: 'rotate(45deg)', backgroundColor: '#10b981' }} />
-                <span>Field Sighting</span>
+                <span>Field Sighting (DATABASE)</span>
               </div>
             )}
             {layers.geofences && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ width: '12px', height: '8px', border: '1px dashed #ff0055', background: 'rgba(255,0,85,0.08)' }} />
-                <span>Geofenced Boundary</span>
+                <span>Geofenced Boundary (SPATIAL)</span>
               </div>
             )}
           </div>
@@ -744,29 +835,90 @@ export const PortalLiveMapPage: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Ask MARIS Trigger */}
-                  <button
-                    onClick={handleAskMaris}
-                    style={{
-                      width: '100%',
-                      backgroundColor: '#000',
-                      color: '#00f2fe',
-                      border: '1px solid #00f2fe',
-                      padding: '10px',
-                      borderRadius: '6px',
-                      fontSize: '0.78rem',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      marginTop: '10px',
-                      boxShadow: '0 0 10px rgba(0,242,254,0.1)',
-                    }}
-                  >
-                    <Bot size={14} /> ASK MARIS ABOUT THIS GRID
-                  </button>
+                  {/* Action Suite */}
+                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                      OPERATIONAL ACTIONS
+                    </div>
+                    
+                    {/* Create Observation */}
+                    <button
+                      onClick={() => {
+                        if (!selectedCoords) return;
+                        const [lng, lat] = selectedCoords;
+                        navigate(`/portal/field?lat=${lat}&lon=${lng}&openCreate=true`);
+                      }}
+                      style={{
+                        width: '100%',
+                        backgroundColor: '#1e293b',
+                        color: '#38bdf8',
+                        border: '1px solid rgba(56,189,248,0.3)',
+                        padding: '10px',
+                        borderRadius: '8px',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      <Activity size={14} /> CREATE FIELD OBSERVATION
+                    </button>
+
+                    {/* Create Investigation */}
+                    <button
+                      onClick={() => {
+                        if (!selectedCoords) return;
+                        const [lng, lat] = selectedCoords;
+                        navigate(`/portal/investigations?lat=${lat}&lon=${lng}&openCreate=true`);
+                      }}
+                      style={{
+                        width: '100%',
+                        backgroundColor: '#1e293b',
+                        color: '#f59e0b',
+                        border: '1px solid rgba(245,158,11,0.3)',
+                        padding: '10px',
+                        borderRadius: '8px',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      <ShieldAlert size={14} /> INITIATE INVESTIGATION CASE
+                    </button>
+
+                    {/* Ask MARIS Trigger */}
+                    <button
+                      onClick={handleAskMaris}
+                      style={{
+                        width: '100%',
+                        backgroundColor: '#000',
+                        color: '#00f2fe',
+                        border: '1px solid #00f2fe',
+                        padding: '10px',
+                        borderRadius: '8px',
+                        fontSize: '0.78rem',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        marginTop: '4px',
+                        boxShadow: '0 0 10px rgba(0,242,254,0.15)',
+                      }}
+                    >
+                      <Bot size={14} /> ASK MARIS ABOUT THIS GRID
+                    </button>
+                  </div>
                 </>
               ) : (
                 <div style={{ opacity: 0.6 }}>Intelligence lookup unavailable.</div>
