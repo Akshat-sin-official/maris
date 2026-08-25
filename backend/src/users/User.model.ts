@@ -8,6 +8,8 @@ export interface IUser extends Document {
   name: string;
   role: UserRole;
   orgId: mongoose.Types.ObjectId | null;
+  organization?: string;
+  badgeNumber?: string;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -35,23 +37,19 @@ const UserSchema: Schema = new Schema(
     role: {
       type: String,
       required: true,
-      enum: ['CITIZEN', 'TIPSTER', 'FIELD_OFFICER', 'CONTROL_ROOM', 'SUPERVISOR', 'ORG_ADMIN'],
+    },
+    organization: {
+      type: String,
+      default: 'MARIS Command Center',
+    },
+    badgeNumber: {
+      type: String,
+      default: null,
     },
     orgId: {
       type: Schema.Types.ObjectId,
       ref: 'Organization',
       default: null,
-      validate: {
-        validator: function (this: IUser, val: mongoose.Types.ObjectId | null) {
-          // orgId is required for staff roles, and must be null for CITIZEN and TIPSTER
-          const citizenRoles: UserRole[] = ['CITIZEN', 'TIPSTER'];
-          if (citizenRoles.includes(this.role)) {
-            return val === null;
-          }
-          return val !== null;
-        },
-        message: 'Organization ID is required for staff roles and must be null for CITIZEN/TIPSTER roles.',
-      },
     },
     isActive: {
       type: Boolean,

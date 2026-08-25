@@ -113,10 +113,26 @@ export const PortalSidebar: React.FC<PortalSidebarProps> = ({
     },
   ];
 
+  const roleAliasMap: Record<string, string[]> = {
+    'Control Room Operator': ['Control Room Operator', 'CONTROL_ROOM_OPERATOR', 'CONTROL_ROOM', 'Admin', 'ORG_ADMIN'],
+    'CONTROL_ROOM_OPERATOR': ['Control Room Operator', 'CONTROL_ROOM_OPERATOR', 'CONTROL_ROOM', 'Admin', 'ORG_ADMIN'],
+    'CONTROL_ROOM': ['Control Room Operator', 'CONTROL_ROOM_OPERATOR', 'CONTROL_ROOM', 'Admin', 'ORG_ADMIN'],
+    'Researcher': ['Researcher', 'RESEARCHER', 'SUPERVISOR', 'Admin', 'ORG_ADMIN'],
+    'RESEARCHER': ['Researcher', 'RESEARCHER', 'SUPERVISOR', 'Admin', 'ORG_ADMIN'],
+    'SUPERVISOR': ['Researcher', 'RESEARCHER', 'SUPERVISOR', 'Admin', 'ORG_ADMIN'],
+    'Coastal Officer': ['Coastal Officer', 'COASTAL_OFFICER', 'FIELD_OFFICER', 'Admin', 'ORG_ADMIN'],
+    'COASTAL_OFFICER': ['Coastal Officer', 'COASTAL_OFFICER', 'FIELD_OFFICER', 'Admin', 'ORG_ADMIN'],
+    'FIELD_OFFICER': ['Coastal Officer', 'COASTAL_OFFICER', 'FIELD_OFFICER', 'Admin', 'ORG_ADMIN'],
+    'Admin': ['Control Room Operator', 'Researcher', 'Coastal Officer', 'Admin', 'ORG_ADMIN', 'ADMIN'],
+    'ADMIN': ['Control Room Operator', 'Researcher', 'Coastal Officer', 'Admin', 'ORG_ADMIN', 'ADMIN'],
+    'ORG_ADMIN': ['Control Room Operator', 'Researcher', 'Coastal Officer', 'Admin', 'ORG_ADMIN', 'ADMIN'],
+  };
+
   const visibleNavItems = navItems.filter((item) => {
     if (!item.allowedRoles) return true;
     const currentRole = user?.role || 'Control Room Operator';
-    return item.allowedRoles.includes(currentRole);
+    const aliases = roleAliasMap[currentRole] || [currentRole];
+    return item.allowedRoles.some((allowed) => aliases.includes(allowed));
   });
 
   return (
