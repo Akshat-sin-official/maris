@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldAlert,
   Search,
@@ -12,11 +12,19 @@ import {
   Camera,
   RefreshCw,
   Info,
+  ShieldCheck,
+  Smartphone,
+  Globe,
+  ArrowRight,
+  UserCheck,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { socketService } from '../services/socket';
 
 export const PortalTipsterPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'submit' | 'track'>('submit');
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'submit' | 'track' | 'audit'>('audit');
 
   // Submit Tip Form State
   const [category, setCategory] = useState('SUSPICIOUS_VESSEL');
@@ -32,6 +40,49 @@ export const PortalTipsterPage: React.FC = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [trackedRecord, setTrackedRecord] = useState<any>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
+
+  // Control Room Tips List State
+  const [controlRoomTips, setControlRoomTips] = useState<any[]>([]);
+  const [isLoadingTips, setIsLoadingTips] = useState<boolean>(false);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
+
+  const fetchControlRoomTips = async () => {
+    setIsLoadingTips(true);
+    try {
+      const res = await api.get('/tips/control-room');
+      const data = Array.isArray(res) ? res : res.data || [];
+      setControlRoomTips(data);
+    } catch (err: any) {
+      console.warn('Failed to load control room tips from backend:', err);
+    } finally {
+      setIsLoadingTips(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchControlRoomTips();
+
+    // Subscribe to realtime Socket.IO updates for live tip arrivals
+    const handleTipEvent = (eventName: string) => {
+      if (eventName === 'tip:submitted' || eventName === 'tip:created' || eventName === 'tip:updated') {
+        fetchControlRoomTips();
+      }
+    };
+
+    socketService.addListener(handleTipEvent);
+    return () => {
+      socketService.removeListener(handleTipEvent);
+    };
+  }, []);
+
+  const getDeviceMetadata = () => ({
+    deviceType: /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'MOBILE' : 'DESKTOP',
+    browser: navigator.userAgent.includes('Chrome') ? 'Chrome' : navigator.userAgent.includes('Firefox') ? 'Firefox' : 'Browser',
+    os: navigator.platform,
+    screenResolution: `${window.screen.width}x${window.screen.height}`,
+    language: navigator.language || 'en-US',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+  });
 
   const handleSubmitTip = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,22 +101,16 @@ export const PortalTipsterPage: React.FC = () => {
           coordinates: [parseFloat(lng) || 79.31, parseFloat(lat) || 9.28],
         },
         evidence: [],
+        clientMetadata: getDeviceMetadata(),
       };
 
       const res = await api.post('/tips/submit', payload);
-      setSubmitResult(res.data);
+      setSubmitResult(res.data || res);
       setTitle('');
       setDescription('');
+      fetchControlRoomTips();
     } catch (err: any) {
-      console.warn('Tip submission backend fallback, generating local pseudonymous receipt', err);
-      const mockReceipt = {
-        tipsterId: `TIP-${Math.floor(1000000000 + Math.random() * 9000000000)}`,
-        status: 'SUBMITTED',
-        genuinenessScore: 82,
-        distractionRisk: 'LOW',
-        createdAt: new Date().toISOString(),
-      };
-      setSubmitResult(mockReceipt);
+      console.error('Tip submission error:', err);
     } finally {
       setIsSubmitting(false);
     }
@@ -81,322 +126,323 @@ export const PortalTipsterPage: React.FC = () => {
 
     try {
       const res = await api.get(`/tips/track/${lookupId.trim().toUpperCase()}`);
-      setTrackedRecord(res.data);
+      setTrackedRecord(res.data || res);
     } catch (err: any) {
-      // Mock fallback lookup if record matches tipster format
-      if (lookupId.trim().toUpperCase().startsWith('TIP-')) {
-        setTrackedRecord({
-          tipsterId: lookupId.trim().toUpperCase(),
-          category: 'WILDLIFE_TRAFFICKING',
-          title: 'Reported Unflagged Trawler Loading Seized Species',
-          status: 'UNDER_REVIEW',
-          reportedAt: '2026-08-24T18:30:00Z',
-          updatedAt: '2026-08-24T22:15:00Z',
-        });
-      } else {
-        setSearchError('No matching tip record found. Please verify your 10-digit Tipster ID.');
-      }
+      setSearchError('No matching tip record found. Please verify your 10-digit Tipster ID.');
     } finally {
       setIsSearching(false);
     }
   };
 
+  const handleUpdateStatus = async (tipId: string, newStatus: string) => {
+    try {
+      await api.patch(`/tips/${tipId}/status`, {
+        status: newStatus,
+        reviewNotes: `Status changed to ${newStatus} by Control Room Operator`,
+      });
+
+      setActionNotice(`Tip status updated to ${newStatus}`);
+      setTimeout(() => setActionNotice(null), 4000);
+      fetchControlRoomTips();
+    } catch (err: any) {
+      console.error('Failed to update tip status:', err);
+    }
+  };
+
+  const handleConvertToIncident = async (tipId: string) => {
+    try {
+      const res = await api.post(`/tips/${tipId}/convert-to-incident`, {});
+      const incident = res.data?.incident || res.incident;
+
+      setActionNotice(`Successfully converted tip into Incident ${incident?.incidentId || 'INC-NEW'}`);
+      fetchControlRoomTips();
+
+      setTimeout(() => {
+        navigate('/portal/investigations');
+      }, 1200);
+    } catch (err: any) {
+      console.error('Failed to convert tip to incident:', err);
+    }
+  };
+
   return (
-    <div style={{ padding: '32px', color: '#111827', fontFamily: 'var(--font-body)', maxWidth: '1200px', margin: '0 auto' }}>
-      {/* Header Banner */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '28px', maxWidth: '1200px', margin: '0 auto' }}>
+      
+      {/* Top Banner Header */}
+      <div
+        style={{
+          backgroundColor: '#ffffff',
+          border: '1px solid rgba(0,0,0,0.08)',
+          borderRadius: '16px',
+          padding: '28px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '20px',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.03)',
+        }}
+      >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ background: '#fef2f2', padding: '10px', borderRadius: '10px', color: '#dc2626' }}>
-              <ShieldAlert size={26} />
-            </div>
-            <div>
-              <h1 style={{ fontSize: '1.6rem', fontWeight: 700, margin: 0 }}>Confidential Tipster & Public Reporting Portal</h1>
-              <p style={{ margin: '4px 0 0 0', color: '#6b7280', fontSize: '0.9rem' }}>
-                End-to-End Pseudonymous Identity Protection • Automatic False-Tip Genuineness Verification
-              </p>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+            <ShieldAlert size={18} color="#dc2626" />
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#dc2626', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              PUBLIC TIPSTER & CONTROL ROOM AUDIT DECK
+            </span>
           </div>
+          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.6rem', fontWeight: 500, margin: 0 }}>
+            Confidential Tip Triage & Security Provenance
+          </h2>
+          <p style={{ margin: '6px 0 0', fontSize: '0.88rem', color: 'rgba(0,0,0,0.6)', maxWidth: '700px' }}>
+            Review incoming pseudonymous citizen reports, calculate genuineness scores, inspect device IP provenance, and convert verified tips into operational incidents.
+          </p>
         </div>
 
-        {/* Tab Toggle */}
-        <div style={{ background: '#f3f4f6', padding: '4px', borderRadius: '10px', display: 'flex', gap: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            onClick={() => setActiveTab('audit')}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '9999px',
+              border: activeTab === 'audit' ? '1px solid #000' : '1px solid rgba(0,0,0,0.1)',
+              backgroundColor: activeTab === 'audit' ? '#000' : '#fff',
+              color: activeTab === 'audit' ? '#fff' : 'rgba(0,0,0,0.7)',
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Control Room Audit ({controlRoomTips.length})
+          </button>
           <button
             onClick={() => setActiveTab('submit')}
             style={{
-              padding: '10px 20px',
-              borderRadius: '8px',
-              fontSize: '0.88rem',
+              padding: '8px 16px',
+              borderRadius: '9999px',
+              border: activeTab === 'submit' ? '1px solid #000' : '1px solid rgba(0,0,0,0.1)',
+              backgroundColor: activeTab === 'submit' ? '#000' : '#fff',
+              color: activeTab === 'submit' ? '#fff' : 'rgba(0,0,0,0.7)',
+              fontSize: '0.78rem',
               fontWeight: 600,
-              border: 'none',
               cursor: 'pointer',
-              background: activeTab === 'submit' ? '#ffffff' : 'transparent',
-              color: activeTab === 'submit' ? '#111827' : '#6b7280',
-              boxShadow: activeTab === 'submit' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
             }}
           >
-            <Send size={16} /> Submit Confidential Tip
+            Submit Tip
           </button>
           <button
             onClick={() => setActiveTab('track')}
             style={{
-              padding: '10px 20px',
-              borderRadius: '8px',
-              fontSize: '0.88rem',
+              padding: '8px 16px',
+              borderRadius: '9999px',
+              border: activeTab === 'track' ? '1px solid #000' : '1px solid rgba(0,0,0,0.1)',
+              backgroundColor: activeTab === 'track' ? '#000' : '#fff',
+              color: activeTab === 'track' ? '#fff' : 'rgba(0,0,0,0.7)',
+              fontSize: '0.78rem',
               fontWeight: 600,
-              border: 'none',
               cursor: 'pointer',
-              background: activeTab === 'track' ? '#ffffff' : 'transparent',
-              color: activeTab === 'track' ? '#111827' : '#6b7280',
-              boxShadow: activeTab === 'track' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
             }}
           >
-            <Search size={16} /> Track Tip Status
+            Track Tip ID
           </button>
         </div>
       </div>
 
-      {/* Security Banner */}
-      <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '16px', borderRadius: '12px', marginBottom: '32px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-        <Lock size={20} color="#16a34a" style={{ flexShrink: 0, marginTop: '2px' }} />
-        <div style={{ fontSize: '0.85rem', color: '#166534', lineHeight: 1.5 }}>
-          <strong>Privacy Guarantee:</strong> You do not need to provide your name, phone number, or email. The system assigns an encrypted 10-digit pseudonymous Tipster ID (`TIP-XXXXXX-2026`). Keep your Tipster ID safe to track your report's progress privately.
-        </div>
-      </div>
-
-      {/* TAB 1: SUBMIT TIP FORM */}
-      {activeTab === 'submit' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px' }}>
-          <form onSubmit={handleSubmitTip} style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '16px', padding: '28px' }}>
-            <h3 style={{ margin: '0 0 20px 0', fontSize: '1.1rem', fontWeight: 700 }}>Report Suspicious Marine Activity</h3>
-
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
-                INCIDENT CATEGORY
-              </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '0.9rem', outline: 'none' }}
-              >
-                <option value="SUSPICIOUS_VESSEL">Suspicious Vessel / Unflagged Boat Movement</option>
-                <option value="WILDLIFE_TRAFFICKING">Wildlife Trafficking (Sea Turtle, Seahorse, Shark Fin)</option>
-                <option value="ILLEGAL_FISHING">Illegal Trawling in Restricted Geofence / MPA</option>
-                <option value="POLLUTION">Marine Oil Discharge / Chemical Pollution</option>
-                <option value="SANCTUARY_BREACH">Sanctuary Boundary Encroachment</option>
-                <option value="OTHER">Other Marine Safety / Contraband Observation</option>
-              </select>
-            </div>
-
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
-                REPORT TITLE / SUMMARY
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Unmarked blue hull boat loading crates near Mandapam jetty"
-                required
-                style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }}
-              />
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
-                  LATITUDE (GPS)
-                </label>
-                <input
-                  type="text"
-                  value={lat}
-                  onChange={(e) => setLat(e.target.value)}
-                  placeholder="9.28"
-                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
-                  LONGITUDE (GPS)
-                </label>
-                <input
-                  type="text"
-                  value={lng}
-                  onChange={(e) => setLng(e.target.value)}
-                  placeholder="79.31"
-                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }}
-                />
-              </div>
-            </div>
-
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
-                DETAILED OBSERVATION & EVIDENCE DESCRIPTION
-              </label>
-              <textarea
-                rows={5}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Provide details: time of observation, vessel description, crew count, suspected species/items, direction of travel..."
-                required
-                style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              style={{
-                width: '100%',
-                background: '#090d16',
-                color: '#ffffff',
-                padding: '14px',
-                borderRadius: '10px',
-                fontWeight: 600,
-                fontSize: '0.95rem',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '10px',
-              }}
-            >
-              {isSubmitting ? <RefreshCw className="animate-spin" size={18} /> : <Send size={18} />}
-              {isSubmitting ? 'Transmitting Pseudonymous Tip...' : 'Submit Anonymous Tip'}
-            </button>
-          </form>
-
-          {/* Submission Result / Instructions */}
-          <div>
-            {submitResult ? (
-              <div style={{ background: '#090d16', color: '#ffffff', borderRadius: '16px', padding: '28px', border: '1px solid #00f2fe' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#00f2fe', marginBottom: '16px' }}>
-                  <CheckCircle size={24} />
-                  <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Tip Transmitted Securely</h4>
-                </div>
-
-                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '16px', borderRadius: '10px', marginBottom: '20px', border: '1px border #1f2937' }}>
-                  <div style={{ fontSize: '0.75rem', color: '#9ca3af', letterSpacing: '1px' }}>YOUR PSEUDONYMOUS TIPSTER ID</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#00f2fe', letterSpacing: '2px', margin: '6px 0' }}>
-                    {submitResult.tipsterId}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Save this ID! You can use it to track your report on the Track Tip tab.</div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px', fontSize: '0.85rem' }}>
-                  <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px' }}>
-                    <div style={{ color: '#9ca3af', fontSize: '0.75rem' }}>GENUINENESS SCORE</div>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 700, color: submitResult.genuinenessScore > 75 ? '#22c55e' : '#f59e0b' }}>
-                      {submitResult.genuinenessScore}/100
-                    </div>
-                  </div>
-                  <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px' }}>
-                    <div style={{ color: '#9ca3af', fontSize: '0.75rem' }}>DISTRACTION RISK</div>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 700, color: submitResult.distractionRisk === 'LOW' ? '#22c55e' : '#ef4444' }}>
-                      {submitResult.distractionRisk}
-                    </div>
-                  </div>
-                </div>
-
-                <p style={{ fontSize: '0.8rem', color: '#9ca3af', lineHeight: 1.5, margin: 0 }}>
-                  ⚡ Passed automated satellite SST, weather feasibility, and historical corridor pattern check. Control Room operators have been notified.
-                </p>
-              </div>
-            ) : (
-              <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '16px', padding: '24px' }}>
-                <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', fontWeight: 700 }}>How Genuineness Verification Works</h4>
-                <div style={{ fontSize: '0.85rem', color: '#4b5563', lineHeight: 1.6 }}>
-                  <p style={{ margin: '0 0 12px 0' }}>
-                    To prevent <strong>false distraction tips</strong> from pulling patrol boats away during illegal smuggling operations, MARIS automatically cross-verifies every tip against:
-                  </p>
-                  <ul style={{ paddingLeft: '20px', margin: 0 }}>
-                    <li><strong>Satellite Thermal Fronts (SST)</strong> & Copernicus ocean color</li>
-                    <li><strong>AIS Vessel Position History</strong> & radar tracks</li>
-                    <li><strong>Historical Contraband Corridor Records</strong></li>
-                    <li><strong>Sea-State Weather Feasibility</strong> (IMD/Open-Meteo)</li>
-                  </ul>
-                </div>
-              </div>
-            )}
-          </div>
+      {actionNotice && (
+        <div style={{ padding: '14px 20px', borderRadius: '12px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', fontSize: '0.88rem', fontWeight: 600 }}>
+          ✓ {actionNotice}
         </div>
       )}
 
-      {/* TAB 2: TRACK TIP STATUS */}
-      {activeTab === 'track' && (
-        <div style={{ maxWidth: '640px', margin: '0 auto', background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '16px', padding: '32px' }}>
-          <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', fontWeight: 700 }}>Track Report Progress</h3>
-          <p style={{ margin: '0 0 24px 0', color: '#6b7280', fontSize: '0.88rem' }}>
-            Enter your 10-digit Tipster ID to check report verification and response status.
-          </p>
-
-          <form onSubmit={handleTrackLookup} style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
-            <input
-              type="text"
-              value={lookupId}
-              onChange={(e) => setLookupId(e.target.value)}
-              placeholder="e.g. TIP-8492019482"
-              required
-              style={{ flex: 1, padding: '12px 16px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '1rem', outline: 'none' }}
-            />
+      {/* TAB 1: CONTROL ROOM AUDIT VIEW */}
+      {activeTab === 'audit' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', margin: 0, color: '#000' }}>
+              Live Confidential Tipster Log ({controlRoomTips.length})
+            </h3>
             <button
-              type="submit"
-              disabled={isSearching}
+              onClick={fetchControlRoomTips}
+              disabled={isLoadingTips}
               style={{
-                background: '#090d16',
-                color: '#ffffff',
-                padding: '12px 24px',
+                padding: '6px 12px',
                 borderRadius: '8px',
+                border: '1px solid rgba(0,0,0,0.1)',
+                backgroundColor: '#ffffff',
+                fontSize: '0.78rem',
                 fontWeight: 600,
-                border: 'none',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
+                gap: '6px',
               }}
             >
-              {isSearching ? <RefreshCw className="animate-spin" size={18} /> : <Search size={18} />} Lookup
+              <RefreshCw size={14} className={isLoadingTips ? 'animate-spin' : ''} />
+              <span>Refresh Log</span>
             </button>
-          </form>
+          </div>
 
-          {searchError && (
-            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', padding: '14px', borderRadius: '8px', fontSize: '0.85rem' }}>
-              {searchError}
+          {controlRoomTips.length === 0 ? (
+            <div style={{ padding: '40px', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid rgba(0,0,0,0.08)', textAlign: 'center', color: '#6b7280' }}>
+              No confidential tips logged yet in MongoDB Atlas. Submit a tip to view real-time triage.
             </div>
-          )}
+          ) : (
+            controlRoomTips.map((tip) => {
+              const isHighScore = (tip.genuinenessScore || 50) >= 75;
 
-          {trackedRecord && (
-            <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <div>
-                  <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>RECORD ID</div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#111827' }}>{trackedRecord.tipsterId}</div>
-                </div>
-                <span
+              return (
+                <div
+                  key={tip._id || tip.id}
                   style={{
-                    padding: '6px 12px',
-                    borderRadius: '20px',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    background: trackedRecord.status === 'VERIFIED' ? '#dcfce7' : '#fef3c7',
-                    color: trackedRecord.status === 'VERIFIED' ? '#166534' : '#92400e',
+                    backgroundColor: '#ffffff',
+                    border: isHighScore ? '1.5px solid #a7f3d0' : '1px solid rgba(0,0,0,0.08)',
+                    borderRadius: '16px',
+                    padding: '24px',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.02)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '16px',
                   }}
                 >
-                  {trackedRecord.status}
-                </span>
-              </div>
+                  {/* Card Header */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#047857', fontFamily: 'monospace' }}>
+                        {tip.tipsterId}
+                      </span>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', backgroundColor: '#eff6ff', color: '#1d4ed8' }}>
+                        {tip.category}
+                      </span>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', backgroundColor: tip.status === 'ACTIONED' ? '#dcfce7' : '#fef3c7', color: tip.status === 'ACTIONED' ? '#15803d' : '#b45309' }}>
+                        STATUS: {tip.status}
+                      </span>
+                    </div>
 
-              <div style={{ marginBottom: '12px', fontSize: '0.9rem', fontWeight: 600 }}>{trackedRecord.title}</div>
-              <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
-                Reported on: {new Date(trackedRecord.reportedAt || trackedRecord.createdAt).toLocaleString()}
-              </div>
+                    <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                      Logged: {new Date(tip.createdAt || tip.reportedAt).toLocaleString()}
+                    </div>
+                  </div>
+
+                  {/* Title & Description */}
+                  <div>
+                    <h4 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', margin: '0 0 6px', color: '#000' }}>
+                      {tip.title}
+                    </h4>
+                    <p style={{ margin: 0, fontSize: '0.88rem', color: '#374151', lineHeight: 1.45 }}>
+                      {tip.description}
+                    </p>
+                  </div>
+
+                  {/* Genuineness Score & Provenance Metadata Bar */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', padding: '14px', borderRadius: '12px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                    <div>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>GENUINENESS SCORE</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: isHighScore ? '#047857' : '#b45309' }}>
+                        {tip.genuinenessScore || 75}/100 ({tip.distractionRisk || 'LOW'} RISK)
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>BACKGROUND DEVICE PROVENANCE</div>
+                      <div style={{ fontSize: '0.78rem', color: '#1e293b', fontWeight: 600 }}>
+                        {tip.clientMetadata?.deviceType || 'DESKTOP'} • IP: {tip.clientMetadata?.ipAddress || '127.0.0.1'}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                        {tip.clientMetadata?.browser || 'Chrome'} ({tip.clientMetadata?.os || 'OS'}) • {tip.clientMetadata?.screenResolution || '1920x1080'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>GEOTAG COORDINATES</div>
+                      <div style={{ fontSize: '0.85rem', color: '#0f172a', fontWeight: 600 }}>
+                        [{tip.location?.coordinates?.[1] || 9.28}, {tip.location?.coordinates?.[0] || 79.31}]
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '14px', flexWrap: 'wrap', gap: '10px' }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => handleUpdateStatus(tip._id || tip.id, 'UNDER_REVIEW')}
+                        style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.1)', backgroundColor: '#fff', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        Mark Under Review
+                      </button>
+                      <button
+                        onClick={() => handleUpdateStatus(tip._id || tip.id, 'VERIFIED')}
+                        style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #bbf7d0', backgroundColor: '#f0fdf4', color: '#166534', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        Verify Tip
+                      </button>
+                      <button
+                        onClick={() => handleUpdateStatus(tip._id || tip.id, 'REJECTED')}
+                        style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #fecaca', backgroundColor: '#fef2f2', color: '#991b1b', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        Reject
+                      </button>
+                    </div>
+
+                    {tip.status !== 'ACTIONED' && (
+                      <button
+                        onClick={() => handleConvertToIncident(tip._id || tip.id)}
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          backgroundColor: '#000000',
+                          color: '#ffffff',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <ArrowRight size={14} />
+                        <span>Convert to Incident & Action</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* TAB 2: SUBMIT TIP FORM */}
+      {activeTab === 'submit' && (
+        <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid rgba(0,0,0,0.08)', padding: '28px' }}>
+          {submitResult ? (
+            <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534' }}>
+              <h3>Tip Submitted: {submitResult.tipsterId}</h3>
+              <p>Genuineness Score: {submitResult.genuinenessScore}/100</p>
+              <button onClick={() => setSubmitResult(null)}>Submit Another</button>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmitTip} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Incident title..." style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ddd' }} />
+              <textarea required rows={4} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description..." style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ddd' }} />
+              <button type="submit" disabled={isSubmitting} style={{ padding: '12px', backgroundColor: '#000', color: '#fff', borderRadius: '8px', border: 'none' }}>
+                Submit Tip
+              </button>
+            </form>
+          )}
+        </div>
+      )}
+
+      {/* TAB 3: TRACK TIP LOOKUP */}
+      {activeTab === 'track' && (
+        <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid rgba(0,0,0,0.08)', padding: '28px' }}>
+          <form onSubmit={handleTrackLookup} style={{ display: 'flex', gap: '12px' }}>
+            <input type="text" required value={lookupId} onChange={(e) => setLookupId(e.target.value)} placeholder="Enter 10-digit Tipster ID..." style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #ddd' }} />
+            <button type="submit" style={{ padding: '12px 24px', backgroundColor: '#000', color: '#fff', borderRadius: '8px', border: 'none' }}>Track</button>
+          </form>
+          {trackedRecord && (
+            <div style={{ marginTop: '20px', padding: '16px', borderRadius: '12px', backgroundColor: '#f8fafc' }}>
+              <h4>{trackedRecord.title}</h4>
+              <p>Status: {trackedRecord.status}</p>
             </div>
           )}
         </div>

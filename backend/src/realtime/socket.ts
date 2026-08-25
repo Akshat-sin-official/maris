@@ -54,7 +54,8 @@ export function initializeSocket(server: HTTPServer): SocketIOServer {
     // 1. Join personal room (for targeted user broadcasts like assignments)
     socket.join(`user:${user.userId}`);
 
-    // 2. Join organization room if user is staff (has orgId)
+    // 2. Join control_room and organization room for staff
+    socket.join('control_room');
     if (user.orgId) {
       socket.join(`org:${user.orgId}`);
       logger.info(`Socket ${socket.id} joined room org:${user.orgId}`);
@@ -238,4 +239,36 @@ export function notifyObservationReceived(observation: any): void {
     server.to(`user:${observation.creatorId.toString()}`).emit('observation_received', observation);
   }
   logger.info(`Realtime: Broadcasted observation_received (${observation._id})`);
+}
+
+/**
+ * Emits "tip:submitted" and "tip:created" events to control_room listeners
+ */
+export function notifyNewTip(tip: any): void {
+  const server = getSocketServer();
+  const payload = {
+    id: tip._id || tip.id,
+    tipsterId: tip.tipsterId,
+    title: tip.title,
+    category: tip.category,
+    status: tip.status,
+    genuinenessScore: tip.genuinenessScore,
+    distractionRisk: tip.distractionRisk,
+    location: tip.location,
+    createdAt: tip.createdAt,
+  };
+  server.to('control_room').emit('tip:submitted', payload);
+  server.to('control_room').emit('tip:created', payload);
+  server.emit('tip:submitted', payload);
+  logger.info(`Realtime: Broadcasted tip:submitted for ${tip.tipsterId}`);
+}
+
+/**
+ * Emits "tip:updated" event to control_room listeners
+ */
+export function notifyTipUpdated(tip: any): void {
+  const server = getSocketServer();
+  server.to('control_room').emit('tip:updated', tip);
+  server.emit('tip:updated', tip);
+  logger.info(`Realtime: Broadcasted tip:updated for ${tip.tipsterId}`);
 }

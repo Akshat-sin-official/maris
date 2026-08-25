@@ -7,7 +7,7 @@ dist/
 **/dist/
 
 # Local env files
-.env
+# .env
 .env*.local
 **/.env
 **/.env*.local

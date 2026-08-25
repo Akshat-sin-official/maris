@@ -12,6 +12,7 @@ import { PortalMapCanvas } from '../components/PortalMapCanvas';
 import { INITIAL_ALERTS, INITIAL_FIELD_OBSERVATIONS } from '../data/portalMockData';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
+import { socketService } from '../services/socket';
 
 export const PortalDashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -60,6 +61,23 @@ export const PortalDashboardPage: React.FC = () => {
     };
 
     fetchLiveDashboardData();
+
+    // Subscribe to realtime Socket.IO updates for instant dashboard refreshes
+    const handleRealtimeUpdate = (eventName: string) => {
+      if (
+        eventName === 'tip:submitted' ||
+        eventName === 'tip:created' ||
+        eventName === 'tip:updated' ||
+        eventName === 'new_incident'
+      ) {
+        fetchLiveDashboardData();
+      }
+    };
+
+    socketService.addListener(handleRealtimeUpdate);
+    return () => {
+      socketService.removeListener(handleRealtimeUpdate);
+    };
   }, []);
 
   const activeAlerts = incidentsList.filter((inc) => inc.status !== 'CLOSED');
