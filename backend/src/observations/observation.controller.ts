@@ -117,10 +117,7 @@ export async function getObservations(req: AuthenticatedRequest, res: Response, 
 
     if (citizenRoles.includes(userContext.role)) {
       query.creatorId = new mongoose.Types.ObjectId(userContext.userId);
-    } else {
-      if (!userContext.orgId) {
-        throw new ForbiddenError('Access denied: staff must belong to an organization');
-      }
+    } else if (userContext.orgId) {
       query.orgId = new mongoose.Types.ObjectId(userContext.orgId);
     }
 

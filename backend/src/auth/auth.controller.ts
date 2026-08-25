@@ -135,12 +135,29 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
       throw new UnauthorizedError('Invalid credentials');
     }
 
-    // 3. Generate tokens
+    // 3. Resolve default organization for staff users if missing
+    let userOrgId = user.orgId ? user.orgId.toString() : null;
+    const citizenRoles: string[] = ['CITIZEN', 'TIPSTER'];
+    if (!citizenRoles.includes(user.role) && !userOrgId) {
+      let defaultOrg = await Organization.findOne({ code: 'MARIS-HQ' });
+      if (!defaultOrg) {
+        defaultOrg = await Organization.create({
+          name: 'MARIS Operational Command Center',
+          code: 'MARIS-HQ',
+          isActive: true,
+        });
+      }
+      user.orgId = defaultOrg._id as any;
+      await user.save();
+      userOrgId = defaultOrg._id.toString();
+    }
+
+    // 4. Generate tokens
     const accessToken = generateToken({
       userId: user._id.toString(),
       role: user.role,
       email: user.email,
-      orgId: user.orgId ? user.orgId.toString() : null,
+      orgId: userOrgId,
     });
 
     const rawRefreshToken = crypto.randomBytes(40).toString('hex');

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { connectDatabase, disconnectDatabase } from './database';
+import { Organization } from '../organizations/Organization.model';
 import { User } from '../users/User.model';
 import { Incident } from '../incidents/Incident.model';
 import { Tip } from '../incidents/Tip.model';
@@ -10,6 +11,17 @@ async function seedData() {
   try {
     logger.info('Starting MARIS Database Seeding...');
     await connectDatabase();
+
+    // 0. Seed Default Organization
+    let defaultOrg = await Organization.findOne({ code: 'MARIS-HQ' });
+    if (!defaultOrg) {
+      defaultOrg = await Organization.create({
+        name: 'MARIS Operational Command Center',
+        code: 'MARIS-HQ',
+        isActive: true,
+      });
+      logger.info('✅ Default organization seeded: MARIS-HQ');
+    }
 
     // 1. Seed System Users
     const passwordHash = await bcrypt.hash('password123', 10);
@@ -21,6 +33,7 @@ async function seedData() {
         passwordHash,
         role: 'CONTROL_ROOM',
         organization: 'Ministry of Ports, Shipping & Waterways',
+        orgId: defaultOrg._id,
         badgeNumber: 'MARIS-CR-001',
       },
       {
@@ -29,6 +42,7 @@ async function seedData() {
         passwordHash,
         role: 'SUPERVISOR',
         organization: 'National Institute of Oceanography (NIO)',
+        orgId: defaultOrg._id,
         badgeNumber: 'MARIS-RS-002',
       },
       {
@@ -37,6 +51,7 @@ async function seedData() {
         passwordHash,
         role: 'FIELD_OFFICER',
         organization: 'Indian Coast Guard - Tamil Nadu Station',
+        orgId: defaultOrg._id,
         badgeNumber: 'MARIS-CG-003',
       },
       {
@@ -45,6 +60,7 @@ async function seedData() {
         passwordHash,
         role: 'ORG_ADMIN',
         organization: 'MARIS Global Command Center',
+        orgId: defaultOrg._id,
         badgeNumber: 'MARIS-ADM-000',
       },
     ];
