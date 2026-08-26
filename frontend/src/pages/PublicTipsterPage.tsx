@@ -5,10 +5,8 @@ import {
   CheckCircle2,
   RefreshCw,
   ShieldCheck,
-  Camera,
   X,
   UploadCloud,
-  Image as ImageIcon,
 } from 'lucide-react';
 import { api } from '../portal/services/api';
 
@@ -48,23 +46,51 @@ export const PublicTipsterPage: React.FC = () => {
     };
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    Array.from(files).forEach((file) => {
-      if (!file.type.startsWith('image/')) return;
+  const compressImage = (file: File): Promise<{ name: string; url: string }> => {
+    return new Promise((resolve) => {
       const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setSelectedImages((prev) => [
-            ...prev,
-            { name: file.name, url: event.target!.result as string },
-          ]);
-        }
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 1280;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressedUrl = canvas.toDataURL('image/jpeg', 0.8);
+            resolve({ name: file.name, url: compressedUrl });
+          } else {
+            resolve({ name: file.name, url: e.target?.result as string });
+          }
+        };
+        img.src = e.target?.result as string;
       };
       reader.readAsDataURL(file);
     });
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith('image/')) continue;
+      const compressed = await compressImage(file);
+      setSelectedImages((prev) => [...prev, compressed]);
+    }
 
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -346,7 +372,7 @@ export const PublicTipsterPage: React.FC = () => {
                     <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151' }}>
                       UPLOAD PHOTO EVIDENCE <span style={{ color: '#6b7280', fontWeight: 500 }}>(Optional)</span>
                     </label>
-                    <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>JPG, PNG • Max 10MB per file</span>
+                    <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>JPG, PNG • Auto-compressed</span>
                   </div>
 
                   <input

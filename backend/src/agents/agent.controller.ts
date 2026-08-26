@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { ValidationError } from '../common/errors';
@@ -30,9 +31,11 @@ async function writeAuditLog(
   try {
     const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
     const userAgent = req.headers['user-agent'] || 'unknown';
+    const validUserId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : null;
+
     await AuditLog.create({
       eventType,
-      userId,
+      userId: validUserId,
       actorEmail,
       ipAddress,
       userAgent,
@@ -44,7 +47,7 @@ async function writeAuditLog(
 }
 
 /**
- * Handles agentic AI natural query parsing and analysis loop
+ * Handles agentic AI natural query parsing and multi-agent analysis loop
  */
 export async function queryAgenticAI(
   req: AuthenticatedRequest,
@@ -152,8 +155,8 @@ export async function queryAgenticAI(
     await writeAuditLog('USER_UPDATE', userContext.email, userContext.userId, req, {
       action: 'RUN_AGENTIC_AI_QUERY',
       query,
-      intent: finalOutput.intent,
-      riskScore: finalOutput.risk?.score,
+      intent: finalOutput?.intent,
+      riskScore: finalOutput?.risk?.score,
     });
 
     res.status(200).json({

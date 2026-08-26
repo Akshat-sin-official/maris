@@ -7,11 +7,13 @@ export type AuditEventType =
   | 'TOKEN_REFRESH'
   | 'UNAUTHORIZED_ACCESS'
   | 'USER_CREATE'
-  | 'USER_UPDATE';
+  | 'USER_UPDATE'
+  | 'AI_QUERY'
+  | 'TIP_SUBMIT';
 
 export interface IAuditLog extends Document {
-  eventType: AuditEventType;
-  userId: mongoose.Types.ObjectId | null;
+  eventType: string;
+  userId?: mongoose.Types.ObjectId | null;
   actorEmail: string;
   ipAddress?: string;
   userAgent?: string;
@@ -23,15 +25,6 @@ const AuditLogSchema: Schema = new Schema({
   eventType: {
     type: String,
     required: true,
-    enum: [
-      'LOGIN_SUCCESS',
-      'LOGIN_FAILURE',
-      'LOGOUT',
-      'TOKEN_REFRESH',
-      'UNAUTHORIZED_ACCESS',
-      'USER_CREATE',
-      'USER_UPDATE',
-    ],
     index: true,
   },
   userId: {
