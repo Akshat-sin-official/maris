@@ -194,7 +194,7 @@ export const AskMarisAiModal: React.FC<AskMarisAiModalProps> = ({ isOpen, onClos
                 Ask MARIS Agentic AI
               </h3>
               <span style={{ fontSize: '0.72rem', color: 'rgba(0,0,0,0.5)' }}>
-                Powered by Google Gemini AI Multi-Model Resiliency Engine
+                Powered by MARIS AI Multi-Model Resiliency Engine
               </span>
             </div>
           </div>
@@ -371,20 +371,20 @@ export const AskMarisAiModal: React.FC<AskMarisAiModalProps> = ({ isOpen, onClos
                 }}
               >
                 {getCleanAnswerText(result.answer).split('\n').filter((l: string) => l.trim() !== '').map((line: string, i: number) => {
-                    const trimmed = line.trim();
-                    if (trimmed.startsWith('###')) {
-                      return <h4 key={i} style={{ margin: '12px 0 6px', fontSize: '1.05rem', color: '#000' }}>{trimmed.replace(/^###\s*/, '')}</h4>;
-                    }
-                    if (trimmed.startsWith('*') || trimmed.startsWith('-')) {
-                      return (
-                        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', margin: '6px 0', fontSize: '0.9rem' }}>
-                          <span style={{ color: '#2563eb', fontWeight: 700 }}>•</span>
-                          <span>{trimmed.replace(/^[*|-]\s*/, '')}</span>
-                        </div>
-                      );
-                    }
-                    return <p key={i} style={{ margin: '0 0 8px' }}>{trimmed}</p>;
-                  })}
+                  const trimmed = line.trim();
+                  if (trimmed.startsWith('###')) {
+                    return <h4 key={i} style={{ margin: '12px 0 6px', fontSize: '1.05rem', color: '#000' }}>{trimmed.replace(/^###\s*/, '')}</h4>;
+                  }
+                  if (trimmed.startsWith('*') || trimmed.startsWith('-')) {
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', margin: '6px 0', fontSize: '0.9rem' }}>
+                        <span style={{ color: '#2563eb', fontWeight: 700 }}>•</span>
+                        <span>{trimmed.replace(/^[*|-]\s*/, '')}</span>
+                      </div>
+                    );
+                  }
+                  return <p key={i} style={{ margin: '0 0 8px' }}>{trimmed}</p>;
+                })}
               </div>
 
               {/* Explainable Reasoning Callout Box */}

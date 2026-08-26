@@ -73,7 +73,7 @@ export const PortalMarisAiPage: React.FC = () => {
             confidence: 0.92,
           }))
           : [
-            { name: 'Google Gemini AI Engine', type: 'INTELLIGENCE', timestamp: 'Just now', confidence: 0.95 },
+            { name: 'MARIS AI Engine', type: 'INTELLIGENCE', timestamp: 'Just now', confidence: 0.95 },
             { name: 'OpenWeatherMap Coastal Feed', type: 'WEATHER', timestamp: 'Live Feed', confidence: 0.91 },
             { name: 'INCOIS ERDDAP Marine System', type: 'OCEANOGRAPHY', timestamp: 'Live Feed', confidence: 0.93 },
           ],
@@ -121,14 +121,14 @@ export const PortalMarisAiPage: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
             <Sparkles size={18} color="#fa2edf" />
             <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              GOOGLE GEMINI LIVE AI AGENT ENGINE
+              MARINE AI AGENT ENGINE
             </span>
           </div>
           <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.6rem', fontWeight: 500, margin: 0 }}>
             MARIS Agentic Intelligence Assistant
           </h2>
           <p style={{ margin: '6px 0 0', fontSize: '0.88rem', color: 'rgba(0,0,0,0.6)', maxWidth: '650px' }}>
-            Query live multi-sensor marine data, weather hazards, INCOIS PFZ thermal fronts, and sanctuary geofence intersections powered directly by Google Gemini AI.
+            Query live multi-sensor marine data, weather hazards, INCOIS PFZ thermal fronts, and sanctuary geofence intersections powered directly by MARIS AI.
           </p>
         </div>
 

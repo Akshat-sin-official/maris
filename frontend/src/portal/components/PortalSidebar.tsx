@@ -46,6 +46,7 @@ export const PortalSidebar: React.FC<PortalSidebarProps> = ({
       name: 'Dashboard',
       path: '/portal/dashboard',
       icon: LayoutDashboard,
+      allowedRoles: ['Control Room Operator', 'Researcher', 'Coastal Officer', 'Admin'],
     },
     {
       name: 'MARIS AI',
@@ -117,22 +118,29 @@ export const PortalSidebar: React.FC<PortalSidebarProps> = ({
     'Control Room Operator': ['Control Room Operator', 'CONTROL_ROOM_OPERATOR', 'CONTROL_ROOM', 'Admin', 'ORG_ADMIN'],
     'CONTROL_ROOM_OPERATOR': ['Control Room Operator', 'CONTROL_ROOM_OPERATOR', 'CONTROL_ROOM', 'Admin', 'ORG_ADMIN'],
     'CONTROL_ROOM': ['Control Room Operator', 'CONTROL_ROOM_OPERATOR', 'CONTROL_ROOM', 'Admin', 'ORG_ADMIN'],
-    'Researcher': ['Researcher', 'RESEARCHER', 'SUPERVISOR', 'Admin', 'ORG_ADMIN'],
-    'RESEARCHER': ['Researcher', 'RESEARCHER', 'SUPERVISOR', 'Admin', 'ORG_ADMIN'],
-    'SUPERVISOR': ['Researcher', 'RESEARCHER', 'SUPERVISOR', 'Admin', 'ORG_ADMIN'],
-    'Coastal Officer': ['Coastal Officer', 'COASTAL_OFFICER', 'FIELD_OFFICER', 'Admin', 'ORG_ADMIN'],
-    'COASTAL_OFFICER': ['Coastal Officer', 'COASTAL_OFFICER', 'FIELD_OFFICER', 'Admin', 'ORG_ADMIN'],
-    'FIELD_OFFICER': ['Coastal Officer', 'COASTAL_OFFICER', 'FIELD_OFFICER', 'Admin', 'ORG_ADMIN'],
+    'Researcher': ['Researcher', 'RESEARCHER', 'SUPERVISOR'],
+    'RESEARCHER': ['Researcher', 'RESEARCHER', 'SUPERVISOR'],
+    'SUPERVISOR': ['Researcher', 'RESEARCHER', 'SUPERVISOR'],
+    'Coastal Officer': ['Coastal Officer', 'COASTAL_OFFICER', 'FIELD_OFFICER'],
+    'COASTAL_OFFICER': ['Coastal Officer', 'COASTAL_OFFICER', 'FIELD_OFFICER'],
+    'FIELD_OFFICER': ['Coastal Officer', 'COASTAL_OFFICER', 'FIELD_OFFICER'],
     'Admin': ['Control Room Operator', 'Researcher', 'Coastal Officer', 'Admin', 'ORG_ADMIN', 'ADMIN'],
     'ADMIN': ['Control Room Operator', 'Researcher', 'Coastal Officer', 'Admin', 'ORG_ADMIN', 'ADMIN'],
     'ORG_ADMIN': ['Control Room Operator', 'Researcher', 'Coastal Officer', 'Admin', 'ORG_ADMIN', 'ADMIN'],
   };
 
+  // Strictly filter visible items per active role. Unaccessible screens are COMPLETELY HIDDEN.
   const visibleNavItems = navItems.filter((item) => {
     if (!item.allowedRoles) return true;
     const currentRole = user?.role || 'Control Room Operator';
+    
+    // Admin has access to all modules
+    if (currentRole === 'Admin' || currentRole === 'ADMIN' || currentRole === 'ORG_ADMIN') return true;
+
     const aliases = roleAliasMap[currentRole] || [currentRole];
-    return item.allowedRoles.some((allowed) => aliases.includes(allowed));
+    return item.allowedRoles.some((allowed) => {
+      return allowed === currentRole || aliases.includes(allowed);
+    });
   });
 
   return (
@@ -273,13 +281,12 @@ export const PortalSidebar: React.FC<PortalSidebarProps> = ({
                 padding: '8px 12px 4px',
               }}
             >
-              MODULES
+              MODULES ({user?.role || 'OPERATOR'})
             </div>
           )}
 
           {visibleNavItems.map((item) => {
             const Icon = item.icon;
-            const isRestricted = item.allowedRoles && user && !item.allowedRoles.includes(user.role);
 
             return (
               <NavLink
@@ -300,8 +307,6 @@ export const PortalSidebar: React.FC<PortalSidebarProps> = ({
                   fontFamily: 'var(--font-body)',
                   transition: 'all 0.15s ease',
                   justifyContent: collapsed ? 'center' : 'space-between',
-                  opacity: isRestricted ? 0.45 : 1,
-                  pointerEvents: isRestricted ? 'none' : 'auto',
                 })}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -324,8 +329,6 @@ export const PortalSidebar: React.FC<PortalSidebarProps> = ({
                     {item.badge}
                   </span>
                 )}
-
-                {!collapsed && isRestricted && <Lock size={12} color="rgba(0,0,0,0.4)" />}
               </NavLink>
             );
           })}

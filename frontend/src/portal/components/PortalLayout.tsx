@@ -21,6 +21,19 @@ const routeTitleMap: Record<string, string> = {
 };
 
 const roleRouteMatrix: Record<string, string[]> = {
+  'Control Room Operator': [
+    '/portal/dashboard',
+    '/portal/ai',
+    '/portal/map',
+    '/portal/intelligence',
+    '/portal/pfz',
+    '/portal/alerts',
+    '/portal/field',
+    '/portal/investigations',
+    '/portal/tipster',
+    '/portal/reports',
+    '/portal/admin',
+  ],
   CONTROL_ROOM_OPERATOR: [
     '/portal/dashboard',
     '/portal/ai',
@@ -47,10 +60,16 @@ const roleRouteMatrix: Record<string, string[]> = {
     '/portal/reports',
     '/portal/admin',
   ],
+  Researcher: [
+    '/portal/dashboard',
+    '/portal/ai',
+    '/portal/intelligence',
+    '/portal/pfz',
+    '/portal/reports',
+  ],
   RESEARCHER: [
     '/portal/dashboard',
     '/portal/ai',
-    '/portal/map',
     '/portal/intelligence',
     '/portal/pfz',
     '/portal/reports',
@@ -58,24 +77,46 @@ const roleRouteMatrix: Record<string, string[]> = {
   SUPERVISOR: [
     '/portal/dashboard',
     '/portal/ai',
-    '/portal/map',
     '/portal/intelligence',
     '/portal/pfz',
     '/portal/reports',
   ],
+  'Coastal Officer': [
+    '/portal/dashboard',
+    '/portal/ai',
+    '/portal/map',
+    '/portal/alerts',
+    '/portal/field',
+    '/portal/tipster',
+  ],
   COASTAL_OFFICER: [
     '/portal/dashboard',
+    '/portal/ai',
     '/portal/map',
-    '/portal/field',
     '/portal/alerts',
-    '/portal/reports',
+    '/portal/field',
+    '/portal/tipster',
   ],
   FIELD_OFFICER: [
     '/portal/dashboard',
+    '/portal/ai',
     '/portal/map',
-    '/portal/field',
     '/portal/alerts',
+    '/portal/field',
+    '/portal/tipster',
+  ],
+  Admin: [
+    '/portal/dashboard',
+    '/portal/ai',
+    '/portal/map',
+    '/portal/intelligence',
+    '/portal/pfz',
+    '/portal/alerts',
+    '/portal/field',
+    '/portal/investigations',
+    '/portal/tipster',
     '/portal/reports',
+    '/portal/admin',
   ],
   ADMIN: [
     '/portal/dashboard',
@@ -120,9 +161,9 @@ export const PortalLayout: React.FC = () => {
       return;
     }
 
-    // 2. Strict RBAC Route Enforcement
+    // 2. Strict RBAC Route Enforcement on location change or role switch
     if (isAuthenticated && user?.role) {
-      const allowedRoutes = roleRouteMatrix[user.role] || roleRouteMatrix.CONTROL_ROOM_OPERATOR;
+      const allowedRoutes = roleRouteMatrix[user.role] || roleRouteMatrix['Control Room Operator'];
       const currentPath = location.pathname;
 
       if (currentPath !== '/portal/login' && !allowedRoutes.includes(currentPath)) {
