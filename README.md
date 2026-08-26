@@ -18,6 +18,7 @@ MARIS is an agentic marine intelligence platform combining multi-agent decision 
   - [6. Oceanographic Reports](#6-oceanographic-reports)
   - [7. External Provider Adapters](#7-external-provider-adapters)
 - [🖥️ Frontend Pages & Navigation](#%EF%B8%8F-frontend-pages--navigation)
+- [📱 Mobile App & Android Emulator Setup](#-mobile-app--android-emulator-setup)
 - [🛠️ Environment Variables Configuration](#%EF%B8%8F-environment-variables-configuration)
 - [🚀 Quick Start & Development Setup](#-quick-start--development-setup)
 - [🧪 Verification & Type Checking](#-verification--type-checking)
@@ -94,6 +95,7 @@ MARIS bridges field observations, marine sensor telemetry (INCOIS ERDDAP, OpenWe
 | [`frontend/src/portal/components/AskMarisAiModal.tsx`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/frontend/src/portal/components/AskMarisAiModal.tsx) | `⌘K` Interactive MARIS AI command modal component |
 | [`frontend/src/portal/components/PortalMapCanvas.tsx`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/frontend/src/portal/components/PortalMapCanvas.tsx) | MapLibre GL spatial map engine component |
 | [`frontend/src/portal/services/api.ts`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/frontend/src/portal/services/api.ts) | Frontend API REST client & simulated mode interceptor |
+| [`mobile/src/navigation/AppNavigator.tsx`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/mobile/src/navigation/AppNavigator.tsx) | React Native Light Mode 5-Tab Navigator |
 
 ---
 
@@ -109,79 +111,6 @@ MARIS bridges field observations, marine sensor telemetry (INCOIS ERDDAP, OpenWe
 * **`getUsers(req, res)`** — [`user.controller.ts:L55`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/backend/src/users/user.controller.ts#L55)
   - Endpoint: `GET /api/v1/users`
   - Retrieves all staff user documents from MongoDB Atlas sorted by `createdAt: -1`.
-* **`createUser(req, res)`** — [`user.controller.ts:L102`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/backend/src/users/user.controller.ts#L102)
-  - Endpoint: `POST /api/v1/users`
-  - Admin endpoint to seed operational staff credentials (`CONTROL_ROOM`, `RESEARCHER`, `COASTAL_OFFICER`, `ADMIN`).
-* **`updateUser(req, res)`** — [`user.controller.ts:L150`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/backend/src/users/user.controller.ts#L150)
-  - Endpoint: `PATCH /api/v1/users/:id`
-  - Updates user role, active status, or badge credentials.
-
----
-
-### 2. Agentic AI & Decision Support
-* **`queryAgents(req, res)`** — [`agent.controller.ts:L35`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/backend/src/agents/agent.controller.ts#L35)
-  - Endpoint: `POST /api/v1/ai/query`
-  - Executes 8-stage multi-agent reasoning and synthesizes output via Google Gemini AI (`GeminiService`).
-* **`analyzeMarineQuery(query, context)`** — [`gemini.service.ts:L45`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/backend/src/integration/services/gemini.service.ts#L45)
-  - Sequential candidate model failover (`gemini-3.6-flash` → `gemini-3.5-flash` → `gemini-flash-latest`), markdown un-fencing, and nested JSON unwrapping.
-
----
-
-### 3. Incidents & Confidential Tipster System
-* **`submitTip(req, res)`** — [`tip.controller.ts:L24`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/backend/src/incidents/tip.controller.ts#L24)
-  - Endpoint: `POST /api/v1/tips/submit` (Public Access)
-  - Captures device provenance, calculates genuineness score & distraction risk, and returns `TIP-XXXXXXXXXX` receipt.
-* **`trackTipStatus(req, res)`** — [`tip.controller.ts:L78`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/backend/src/incidents/tip.controller.ts#L78)
-  - Endpoint: `GET /api/v1/tips/track/:tipsterId` (Public Access)
-  - Retrieves sanitized tip status without exposing confidential submitter IP or device metadata.
-* **`listControlRoomTips(req, res)`** — [`tip.controller.ts:L112`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/backend/src/incidents/tip.controller.ts#L112)
-  - Endpoint: `GET /api/v1/tips/control-room` (Protected Staff Access)
-  - Fetches all submitted tips for control room triage.
-* **`convertTipToIncident(req, res)`** — [`tip.controller.ts:L185`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/backend/src/incidents/tip.controller.ts#L185)
-  - Endpoint: `POST /api/v1/tips/:id/convert-to-incident`
-  - Promotes a verified tip to an official operational incident case.
-
----
-
-### 4. Hydrographic Intelligence & Telemetry
-* **`lookupByCoordinates(req, res)`** — [`intelligence.controller.ts:L240`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/backend/src/intelligence/intelligence.controller.ts#L240)
-  - Endpoint: `GET /api/v1/intelligence/lookup`
-  - Fetches merged OpenWeatherMap weather, CMEMS ocean conditions, INCOIS PFZ fronts, and OSM sanctuary geofences.
-* **`getLiveLocations(req, res)`** — [`intelligence.controller.ts:L180`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/backend/src/intelligence/intelligence.controller.ts#L180)
-  - Endpoint: `GET /api/v1/intelligence/live-locations`
-  - Streams spatial telemetry for active patrol vessels, trawlers, and sensor buoys.
-
----
-
-### 5. Field Observations & Media Evidence
-* **`createObservation(req, res)`** — [`observation.controller.ts:L40`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/backend/src/observations/observation.controller.ts#L40)
-  - Endpoint: `POST /api/v1/observations`
-  - Records field officer observations with geo-coordinates and initial priority rating.
-* **`uploadEvidence(req, res)`** — [`evidence.controller.ts:L35`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/backend/src/evidence/evidence.controller.ts#L35)
-  - Endpoint: `POST /api/v1/evidence`
-  - Uploads media artifacts (photos/videos) to MinIO Object Storage and records file checksum.
-
----
-
-### 6. Oceanographic Reports
-* **`getReports(req, res)`** — [`report.controller.ts:L30`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/backend/src/reports/report.controller.ts#L30)
-  - Endpoint: `GET /api/v1/reports`
-  - Lists published marine research reports and operational bulletins.
-* **`createReport(req, res)`** — [`report.controller.ts:L80`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/backend/src/reports/report.controller.ts#L80)
-  - Endpoint: `POST /api/v1/reports`
-  - Creates a new report draft with markdown content and tags.
-
----
-
-### 7. External Provider Adapters
-* **`OpenWeatherProvider`** — [`OpenWeatherProvider.ts:L25`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/backend/src/integration/adapters/OpenWeatherProvider.ts#L25)
-  - Queries OpenWeatherMap REST API for temperature, wind speed, pressure, and humidity.
-* **`CopernicusMarineProvider`** — [`CopernicusMarineProvider.ts:L15`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/backend/src/integration/adapters/CopernicusMarineProvider.ts#L15)
-  - Queries Copernicus CMEMS ocean current velocities & sea surface temperature.
-* **`INCOISErddapProvider`** — [`INCOISErddapProvider.ts:L15`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/backend/src/integration/adapters/INCOISErddapProvider.ts#L15)
-  - Queries INCOIS ERDDAP data server for Potential Fishing Zone (PFZ) thermal front advisories.
-* **`OverpassGeospatialProvider`** — [`OverpassGeospatialProvider.ts:L20`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/backend/src/integration/adapters/OverpassGeospatialProvider.ts#L20)
-  - Queries OpenStreetMap Overpass API for marine protected area polygons.
 
 ---
 
@@ -195,11 +124,38 @@ MARIS bridges field observations, marine sensor telemetry (INCOIS ERDDAP, OpenWe
 | `/portal/login` | [`PortalLoginPage.tsx`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/frontend/src/portal/pages/PortalLoginPage.tsx) | Operational sign in & role selector |
 | `/portal/dashboard` | [`PortalDashboardPage.tsx`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/frontend/src/portal/pages/PortalDashboardPage.tsx) | Main control room operational dashboard |
 | `/portal/map` | [`PortalLiveMapPage.tsx`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/frontend/src/portal/pages/PortalLiveMapPage.tsx) | Full-screen MapLibre GL GIS spatial map |
-| `/portal/alerts` | [`PortalAlertsPage.tsx`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/frontend/src/portal/pages/PortalAlertsPage.tsx) | Hazard alerts & situation dispatch table |
-| `/portal/tips` | [`PortalTipsterPage.tsx`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/frontend/src/portal/pages/PortalTipsterPage.tsx) | Control room tipster triage & incident conversion |
-| `/portal/pfz` | [`PortalPfzPage.tsx`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/frontend/src/portal/pages/PortalPfzPage.tsx) | Potential Fishing Zone thermal front advisories |
 | `/portal/admin` | [`PortalAdminPage.tsx`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/frontend/src/portal/pages/PortalAdminPage.tsx) | User directory management & account creation |
-| `/portal/ai` | [`PortalMarisAiPage.tsx`](file:///d:/Project%20files/Personal/SIH%202026/Maris/definedvc.com/frontend/src/portal/pages/PortalMarisAiPage.tsx) | Google Gemini AI assistant conversation page |
+
+---
+
+## 📱 Mobile App & Android Emulator Setup
+
+### 1. Launch Android Emulator AVD
+```powershell
+C:\Users\akshat\AppData\Local\Android\Sdk\emulator\emulator.exe -avd Medium_Phone_API_36.1
+```
+
+### 2. Configure ADB Reverse Port Forwarding (Port 3001)
+```powershell
+C:\Users\akshat\AppData\Local\Android\Sdk\platform-tools\adb.exe reverse tcp:3001 tcp:3001
+```
+
+### 3. Pre-Bundle React Native Offline JS Assets
+```powershell
+cd mobile
+npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res
+```
+
+### 4. Build Debug APK
+```powershell
+cd mobile/android
+.\gradlew assembleDebug
+```
+
+### 5. Install APK onto Android Emulator via ADB
+```powershell
+C:\Users\akshat\AppData\Local\Android\Sdk\platform-tools\adb.exe install -r "d:\Project files\Personal\SIH 2026\Maris\definedvc.com\mobile\android\app\build\outputs\apk\debug\app-debug.apk"
+```
 
 ---
 
@@ -210,10 +166,10 @@ Create a `.env` file inside `backend/.env`:
 ```env
 # Server Configuration
 NODE_ENV=development
-PORT=3000
+PORT=3001
 
 # MongoDB Configuration
-MONGO_URI=mongodb+srv://<user>:<password>@cluster0.aiuqek6.mongodb.net/maris
+MONGO_URI=mongodb+srv://login:login0903@cluster0.aiuqek6.mongodb.net/maris
 
 # JWT Authentication
 JWT_SECRET=super_secret_jwt_sign_key_change_in_production
@@ -221,21 +177,6 @@ JWT_EXPIRES_IN=1d
 
 # Google Gemini AI Integration
 GEMINI_API_KEY=your_gemini_api_key_here
-
-# OpenWeatherMap API
-OPENWEATHER_API_KEY=your_openweather_key_here
-
-# Copernicus Marine Service
-COPERNICUS_USERNAME=your_username
-COPERNICUS_PASSWORD=your_password
-
-# MinIO Object Storage
-STORAGE_PROVIDER=minio
-MINIO_ENDPOINT=127.0.0.1
-MINIO_PORT=9000
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=minioadmin
-MINIO_BUCKET=maris-evidence
 ```
 
 ---
@@ -244,6 +185,7 @@ MINIO_BUCKET=maris-evidence
 
 ### Prerequisites
 - Node.js `v18+`
+- Android SDK & Android Virtual Device (`Medium_Phone_API_36.1`)
 - MongoDB Atlas cluster URI or local MongoDB
 - npm or yarn
 
@@ -260,24 +202,23 @@ npm install
 # Install backend dependencies
 cd ../backend
 npm install
+
+# Install mobile dependencies
+cd ../mobile
+npm install
 ```
 
-### 2. Database Seeding
+### 2. Start Development Servers
 ```bash
-# Seed initial operational users and incidents into MongoDB Atlas
-cd backend
-npm run seed
-```
-
-### 3. Start Development Servers
-```bash
-# Terminal 1: Start Backend API (Port 3000)
+# Terminal 1: Start Backend API (Port 3001)
 cd backend
 npm run dev
 
 # Terminal 2: Start Frontend Web Portal (Port 5173)
 cd frontend
 npm run dev
+
+# Terminal 3: Mobile App Emulator Setup (See section above)
 ```
 
 Open [http://localhost:5173](http://localhost:5173) in your browser.
@@ -286,7 +227,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ## 🧪 Verification & Type Checking
 
-To verify zero TypeScript compilation errors across both applications:
+To verify zero TypeScript compilation errors across all applications:
 
 ```bash
 # Verify Frontend TypeScript compilation
@@ -295,5 +236,9 @@ npx tsc --noEmit
 
 # Verify Backend TypeScript compilation
 cd backend
+npx tsc --noEmit
+
+# Verify Mobile TypeScript compilation
+cd mobile
 npx tsc --noEmit
 ```
