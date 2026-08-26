@@ -1,44 +1,40 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { HomeScreen } from '../screens/HomeScreen';
-import { MapScreen } from '../screens/MapScreen';
+import { ExploreScreen } from '../screens/ExploreScreen';
+import { SafetyCheckScreen } from '../screens/SafetyCheckScreen';
+import { PFZScreen } from '../screens/PFZScreen';
 import { AskMarisScreen } from '../screens/AskMarisScreen';
-import { ObserveScreen } from '../screens/ObserveScreen';
-import { AlertsScreen } from '../screens/AlertsScreen';
-import { MyReportsScreen } from '../screens/MyReportsScreen';
+import { CitizenReportScreen } from '../screens/CitizenReportScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { theme } from '../theme/theme';
+import { Compass, ShieldCheck, Anchor, Bot, ShieldAlert, User } from 'lucide-react-native';
 
 export type RootTabParamList = {
-  Home: undefined;
-  Map: undefined;
+  Explore: undefined;
+  Safety: undefined;
+  PFZ: undefined;
   AskMaris: undefined;
-  Observe: undefined;
-  Alerts: undefined;
-  MyReports: undefined;
+  Report: undefined;
   Profile: undefined;
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const Stack = createNativeStackNavigator();
 
-import { Shield, MapPin, Bot, Eye, Bell, FileText, User as UserIcon } from 'lucide-react-native';
-
-const renderHomeIcon = ({ color, size }: { color: string; size: number }) => <Shield color={color} size={size} />;
-const renderMapIcon = ({ color, size }: { color: string; size: number }) => <MapPin color={color} size={size} />;
+const renderExploreIcon = ({ color, size }: { color: string; size: number }) => <Compass color={color} size={size} />;
+const renderSafetyIcon = ({ color, size }: { color: string; size: number }) => <ShieldCheck color={color} size={size} />;
+const renderPFZIcon = ({ color, size }: { color: string; size: number }) => <Anchor color={color} size={size} />;
 const renderAskIcon = ({ color, size }: { color: string; size: number }) => <Bot color={color} size={size} />;
-const renderObserveIcon = ({ color, size }: { color: string; size: number }) => <Eye color={color} size={size} />;
-const renderAlertsIcon = ({ color, size }: { color: string; size: number }) => <Bell color={color} size={size} />;
-const renderReportsIcon = ({ color, size }: { color: string; size: number }) => <FileText color={color} size={size} />;
-const renderProfileIcon = ({ color, size }: { color: string; size: number }) => <UserIcon color={color} size={size} />;
+const renderReportIcon = ({ color, size }: { color: string; size: number }) => <ShieldAlert color={color} size={size} />;
+const renderProfileIcon = ({ color, size }: { color: string; size: number }) => <User color={color} size={size} />;
 
 function MainTabNavigator() {
   return (
     <Tab.Navigator
       screenOptions={{
         headerStyle: { backgroundColor: theme.colors.surface, elevation: 0, shadowOpacity: 0 },
-        headerTitleStyle: { fontWeight: '700', fontSize: 16, color: theme.colors.textPrimary },
+        headerTitleStyle: { fontWeight: '800', fontSize: 16, color: theme.colors.textPrimary },
         headerTintColor: theme.colors.textPrimary,
         tabBarStyle: {
           backgroundColor: theme.colors.surface,
@@ -47,73 +43,40 @@ function MainTabNavigator() {
           paddingBottom: 8,
           paddingTop: 6,
         },
-        tabBarActiveTintColor: theme.colors.secondary,
+        tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.textMuted,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
       }}
     >
       <Tab.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{
-          title: 'MARIS',
-          tabBarLabel: 'Overview',
-          tabBarIcon: renderHomeIcon,
-        }}
+        name="Explore"
+        component={ExploreScreen}
+        options={{ title: 'MARIS Coastal', tabBarLabel: 'Explore', tabBarIcon: renderExploreIcon }}
       />
       <Tab.Screen
-        name="Map"
-        component={MapScreen}
-        options={{
-          title: 'Live GIS Map',
-          tabBarLabel: 'GIS Map',
-          tabBarIcon: renderMapIcon,
-        }}
+        name="Safety"
+        component={SafetyCheckScreen}
+        options={{ title: 'Coastal Safety', tabBarLabel: 'Safety Check', tabBarIcon: renderSafetyIcon }}
+      />
+      <Tab.Screen
+        name="PFZ"
+        component={PFZScreen}
+        options={{ title: 'Fishing Zones', tabBarLabel: 'PFZ Map', tabBarIcon: renderPFZIcon }}
       />
       <Tab.Screen
         name="AskMaris"
         component={AskMarisScreen}
-        options={{
-          title: 'Ask MARIS AI',
-          tabBarLabel: 'Ask AI',
-          tabBarIcon: renderAskIcon,
-        }}
+        options={{ title: 'MARIS AI Safety', tabBarLabel: 'Ask AI', tabBarIcon: renderAskIcon }}
       />
       <Tab.Screen
-        name="Observe"
-        component={ObserveScreen}
-        options={{
-          title: 'Field Observation',
-          tabBarLabel: 'Observe',
-          tabBarIcon: renderObserveIcon,
-        }}
-      />
-      <Tab.Screen
-        name="Alerts"
-        component={AlertsScreen}
-        options={{
-          title: 'Marine Advisories',
-          tabBarLabel: 'Alerts',
-          tabBarIcon: renderAlertsIcon,
-        }}
-      />
-      <Tab.Screen
-        name="MyReports"
-        component={MyReportsScreen}
-        options={{
-          title: 'My Reports & Queue',
-          tabBarLabel: 'Reports',
-          tabBarIcon: renderReportsIcon,
-        }}
+        name="Report"
+        component={CitizenReportScreen}
+        options={{ title: 'Public Tipster', tabBarLabel: 'Report Tip', tabBarIcon: renderReportIcon }}
       />
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{
-          title: 'Officer Profile',
-          tabBarLabel: 'Profile',
-          tabBarIcon: renderProfileIcon,
-        }}
+        options={{ title: 'Citizen Account', tabBarLabel: 'Account', tabBarIcon: renderProfileIcon }}
       />
     </Tab.Navigator>
   );

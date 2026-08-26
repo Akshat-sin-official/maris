@@ -1,18 +1,18 @@
 export const colors = {
-  primary: '#090d16',
-  secondary: '#00f2fe',
-  accent: '#4facfe',
-  background: '#090d16',
-  surface: '#111827',
-  card: '#1e293b',
-  textPrimary: '#ffffff',
-  textSecondary: '#94a3b8',
+  primary: '#0284c7',
+  secondary: '#0284c7',
+  accent: '#0369a1',
+  background: '#f8fafc',
+  surface: '#ffffff',
+  card: '#ffffff',
+  textPrimary: '#0f172a',
+  textSecondary: '#475569',
   textMuted: '#64748b',
-  border: 'rgba(255, 255, 255, 0.1)',
-  success: '#22c55e',
+  border: '#e2e8f0',
+  success: '#10b981',
   warning: '#f59e0b',
   danger: '#ef4444',
-  info: '#3b82f6',
+  info: '#0284c7',
 };
 
 export const typography = {
@@ -53,5 +53,7 @@ export const theme = {
   spacing,
   borderRadius,
 };
+
+export const lightTheme = theme;
 
 export type Theme = typeof theme;
