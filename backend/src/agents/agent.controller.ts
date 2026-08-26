@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
-import { ForbiddenError, ValidationError } from '../common/errors';
+import { ValidationError } from '../common/errors';
 import { AgentContext } from './AgentContext';
 import {
   PlannerAgent,
@@ -52,10 +52,12 @@ export async function queryAgenticAI(
   next: NextFunction
 ): Promise<void> {
   try {
-    const userContext = req.user;
-    if (!userContext) {
-      throw new ForbiddenError('Access denied: authentication required');
-    }
+    const userContext = req.user || {
+      userId: 'PUBLIC_CITIZEN',
+      email: 'public@maris.gov.in',
+      role: 'CITIZEN',
+      organizationId: 'PUBLIC',
+    };
 
     const { query, location, language, context } = req.body;
 

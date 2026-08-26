@@ -2,12 +2,22 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { theme } from '../theme/theme';
 import { aiApi as marisAiApi } from '../api/ai.api';
-import { Bot, Send, Sparkles, User, FileText, CornerDownRight } from 'lucide-react-native';
+import { Bot, Send, Sparkles, User, FileText, CornerDownRight, ShieldCheck, AlertTriangle, ShieldAlert, CheckCircle2 } from 'lucide-react-native';
+
+interface ParsedAiAnswer {
+  answer: string;
+  riskRating?: 'LOW' | 'MEDIUM' | 'HIGH' | string;
+  confidenceScore?: number;
+  explanation?: string;
+  recommendations?: string[];
+  citations?: string[];
+}
 
 interface ChatMessage {
   id: string;
   sender: 'user' | 'assistant';
   text: string;
+  parsedData?: ParsedAiAnswer;
   citations?: string[];
   engine?: string;
   timestamp: string;
@@ -32,17 +42,34 @@ export const AskMarisScreen: React.FC = () => {
     },
   ]);
 
-  const cleanJsonAnswer = (rawText: string): string => {
-    if (!rawText) return '';
-    let cleaned = rawText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-    try {
-      const parsed = JSON.parse(cleaned);
-      if (parsed.answer) return parsed.answer;
-      if (typeof parsed === 'string') return parsed;
-    } catch {
-      // Return cleaned string if not pure JSON
+  const parseAiResponse = (raw: any): ParsedAiAnswer => {
+    if (!raw) return { answer: 'Information unavailable.' };
+    let target = raw;
+
+    if (typeof raw === 'string') {
+      let cleaned = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+      try {
+        target = JSON.parse(cleaned);
+      } catch {
+        return { answer: cleaned };
+      }
     }
-    return cleaned;
+
+    if (target.data) target = target.data;
+
+    const answerStr = target.answer || target.response || (typeof target === 'string' ? target : JSON.stringify(target));
+    const cleanAnswer = typeof answerStr === 'string'
+      ? answerStr.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+      : JSON.stringify(answerStr);
+
+    return {
+      answer: cleanAnswer,
+      riskRating: target.risk?.rating || target.riskRating,
+      confidenceScore: target.confidence || target.confidenceScore,
+      explanation: target.explanation || target.whyFlagged,
+      recommendations: target.recommendations || [],
+      citations: target.citations || [],
+    };
   };
 
   const handleSend = async (userPrompt?: string) => {
@@ -62,24 +89,14 @@ export const AskMarisScreen: React.FC = () => {
 
     try {
       const res: any = await marisAiApi.query({ query: textToSend });
-      let answerText = '';
-      let citationsList: string[] = [];
-
-      if (res && res.data) {
-        answerText = cleanJsonAnswer(res.data.answer || res.data.response || JSON.stringify(res.data));
-        citationsList = res.data.citations || [];
-      } else if (res && res.answer) {
-        answerText = cleanJsonAnswer(res.answer);
-        citationsList = res.citations || [];
-      } else {
-        answerText = cleanJsonAnswer(typeof res === 'string' ? res : JSON.stringify(res));
-      }
+      const parsed = parseAiResponse(res);
 
       const botMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         sender: 'assistant',
-        text: answerText || 'Information temporarily unavailable for this query.',
-        citations: citationsList,
+        text: parsed.answer,
+        parsedData: parsed,
+        citations: parsed.citations,
         engine: 'MARIS-AI',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
@@ -96,6 +113,85 @@ export const AskMarisScreen: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const renderAiFormattedBody = (msg: ChatMessage) => {
+    const parsed = msg.parsedData;
+    if (!parsed) {
+      return <Text style={styles.msgBody}>{msg.text}</Text>;
+    }
+
+    const riskColor = parsed.riskRating === 'HIGH' ? '#ef4444' : parsed.riskRating === 'MEDIUM' ? '#f59e0b' : '#10b981';
+
+    // Format paragraphs & bullets cleanly
+    const lines = parsed.answer.split('\n').filter(l => l.trim() !== '');
+
+    return (
+      <View style={styles.richAiContainer}>
+        {/* Risk & Confidence Badge Bar */}
+        {parsed.riskRating && (
+          <View style={styles.badgeBar}>
+            <View style={[styles.riskBadge, { backgroundColor: `${riskColor}15`, borderColor: riskColor }]}>
+              {parsed.riskRating === 'HIGH' ? (
+                <ShieldAlert color={riskColor} size={14} />
+              ) : parsed.riskRating === 'MEDIUM' ? (
+                <AlertTriangle color={riskColor} size={14} />
+              ) : (
+                <ShieldCheck color={riskColor} size={14} />
+              )}
+              <Text style={[styles.riskBadgeText, { color: riskColor }]}>
+                {parsed.riskRating} RISK
+              </Text>
+            </View>
+
+            {parsed.confidenceScore && (
+              <View style={styles.confidenceChip}>
+                <CheckCircle2 color={theme.colors.primary} size={12} />
+                <Text style={styles.confidenceText}>
+                  {Math.round(parsed.confidenceScore * 100)}% Confidence
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Clean Structured Answer Content */}
+        <View style={styles.answerTextCard}>
+          {lines.map((line, idx) => {
+            const isBullet = line.trim().startsWith('*') || line.trim().startsWith('-');
+            const cleanLine = line.replace(/^[*•-]\s*/, '').trim();
+
+            if (isBullet) {
+              return (
+                <View key={idx} style={styles.bulletRow}>
+                  <View style={styles.bulletDot} />
+                  <Text style={styles.bulletText}>{cleanLine}</Text>
+                </View>
+              );
+            }
+
+            return (
+              <Text key={idx} style={styles.msgBodyParagraph}>
+                {cleanLine}
+              </Text>
+            );
+          })}
+        </View>
+
+        {/* Recommendations / Next Steps Box */}
+        {parsed.recommendations && parsed.recommendations.length > 0 && (
+          <View style={styles.recsBox}>
+            <Text style={styles.recsTitle}>Safety Recommendations:</Text>
+            {parsed.recommendations.map((rec, rIdx) => (
+              <View key={rIdx} style={styles.recItem}>
+                <Text style={styles.recItemBullet}>✓</Text>
+                <Text style={styles.recItemText}>{rec}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+    );
   };
 
   return (
@@ -133,17 +229,23 @@ export const AskMarisScreen: React.FC = () => {
               <Text style={styles.timestamp}>{msg.timestamp}</Text>
             </View>
 
-            <Text style={styles.msgBody}>{msg.text}</Text>
+            {/* Formatted Answer Body */}
+            {renderAiFormattedBody(msg)}
 
+            {/* Citations Box */}
             {msg.citations && msg.citations.length > 0 && (
               <View style={styles.citationsBox}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                <View style={styles.citationHeader}>
                   <FileText color={theme.colors.textMuted} size={12} />
                   <Text style={styles.citationsTitle}>Information Sources:</Text>
                 </View>
-                {msg.citations.map((c, idx) => (
-                  <Text key={idx} style={styles.citationItem}>• {c}</Text>
-                ))}
+                <View style={styles.citationBadgeGrid}>
+                  {msg.citations.map((c, idx) => (
+                    <View key={idx} style={styles.citationChip}>
+                      <Text style={styles.citationChipText}>{c}</Text>
+                    </View>
+                  ))}
+                </View>
               </View>
             )}
           </View>
@@ -152,7 +254,7 @@ export const AskMarisScreen: React.FC = () => {
         {loading && (
           <View style={styles.loadingWrapper}>
             <ActivityIndicator color={theme.colors.primary} size="small" />
-            <Text style={styles.loadingText}>Retrieving marine intelligence...</Text>
+            <Text style={styles.loadingText}>Synthesizing marine oceanography...</Text>
           </View>
         )}
       </ScrollView>
@@ -212,7 +314,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
     padding: theme.spacing.md,
     borderRadius: theme.borderRadius.lg,
-    maxWidth: '90%',
+    maxWidth: '92%',
   },
   userWrapper: {
     alignSelf: 'flex-end',
@@ -226,13 +328,32 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     borderWidth: 1,
   },
-  msgHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  msgHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   senderName: { color: theme.colors.textPrimary, fontSize: 12, fontWeight: '700', marginLeft: 6 },
   timestamp: { color: theme.colors.textMuted, fontSize: 10, marginLeft: 'auto' },
-  msgBody: { color: theme.colors.textPrimary, fontSize: 13, lineHeight: 18 },
-  citationsBox: { marginTop: 8, paddingTop: 6, borderTopWidth: 0.5, borderTopColor: theme.colors.border },
+  msgBody: { color: theme.colors.textPrimary, fontSize: 13, lineHeight: 19 },
+  msgBodyParagraph: { color: theme.colors.textPrimary, fontSize: 13, lineHeight: 19, marginBottom: 6 },
+  richAiContainer: { marginTop: 2 },
+  badgeBar: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' },
+  riskBadge: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, marginRight: 8 },
+  riskBadgeText: { fontSize: 11, fontWeight: '800', marginLeft: 4 },
+  confidenceChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f1f5f9', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 },
+  confidenceText: { color: theme.colors.textMuted, fontSize: 11, fontWeight: '600', marginLeft: 4 },
+  answerTextCard: { marginTop: 2 },
+  bulletRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 4, paddingLeft: 4 },
+  bulletDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: theme.colors.primary, marginTop: 7, marginRight: 8 },
+  bulletText: { color: theme.colors.textPrimary, fontSize: 13, lineHeight: 18, flex: 1 },
+  recsBox: { marginTop: 10, backgroundColor: '#0284c708', borderColor: '#0284c725', borderWidth: 1, padding: 10, borderRadius: theme.borderRadius.md },
+  recsTitle: { color: theme.colors.primary, fontSize: 12, fontWeight: '700', marginBottom: 4 },
+  recItem: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 3 },
+  recItemBullet: { color: theme.colors.primary, fontSize: 12, fontWeight: '700', marginRight: 6 },
+  recItemText: { color: theme.colors.textPrimary, fontSize: 12, flex: 1, lineHeight: 16 },
+  citationsBox: { marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: theme.colors.border },
+  citationHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
   citationsTitle: { color: theme.colors.textMuted, fontSize: 11, fontWeight: '700', marginLeft: 4 },
-  citationItem: { color: theme.colors.primary, fontSize: 11, marginTop: 2 },
+  citationBadgeGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  citationChip: { backgroundColor: '#f1f5f9', borderColor: theme.colors.border, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, marginRight: 4, marginBottom: 4 },
+  citationChipText: { color: theme.colors.textSecondary, fontSize: 10, fontWeight: '600' },
   loadingWrapper: { flexDirection: 'row', alignItems: 'center', padding: theme.spacing.md },
   loadingText: { color: theme.colors.textMuted, fontSize: 12, marginLeft: 8 },
   suggestionsContainer: { paddingHorizontal: theme.spacing.md, paddingBottom: 8 },

@@ -25,6 +25,24 @@ export function authMiddleware(req: AuthenticatedRequest, _res: Response, next: 
   }
 }
 
+export function optionalAuthMiddleware(req: AuthenticatedRequest, _res: Response, next: NextFunction): void {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return next();
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  try {
+    const payload = verifyToken(token);
+    req.user = payload;
+  } catch {
+    // Ignore invalid tokens for optional endpoints
+  }
+  next();
+}
+
 const ROLE_ALIASES: Record<string, string[]> = {
   CONTROL_ROOM_OPERATOR: ['CONTROL_ROOM_OPERATOR', 'CONTROL_ROOM'],
   CONTROL_ROOM: ['CONTROL_ROOM_OPERATOR', 'CONTROL_ROOM'],

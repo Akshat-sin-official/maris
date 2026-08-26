@@ -2,17 +2,15 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ExploreScreen } from '../screens/ExploreScreen';
-import { SafetyCheckScreen } from '../screens/SafetyCheckScreen';
 import { PFZScreen } from '../screens/PFZScreen';
 import { AskMarisScreen } from '../screens/AskMarisScreen';
 import { CitizenReportScreen } from '../screens/CitizenReportScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { theme } from '../theme/theme';
-import { Compass, ShieldCheck, Anchor, Bot, ShieldAlert, User } from 'lucide-react-native';
+import { Compass, Anchor, Bot, ShieldAlert, User } from 'lucide-react-native';
 
 export type RootTabParamList = {
   Explore: undefined;
-  Safety: undefined;
   PFZ: undefined;
   AskMaris: undefined;
   Report: undefined;
@@ -23,7 +21,6 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 const Stack = createNativeStackNavigator();
 
 const renderExploreIcon = ({ color, size }: { color: string; size: number }) => <Compass color={color} size={size} />;
-const renderSafetyIcon = ({ color, size }: { color: string; size: number }) => <ShieldCheck color={color} size={size} />;
 const renderPFZIcon = ({ color, size }: { color: string; size: number }) => <Anchor color={color} size={size} />;
 const renderAskIcon = ({ color, size }: { color: string; size: number }) => <Bot color={color} size={size} />;
 const renderReportIcon = ({ color, size }: { color: string; size: number }) => <ShieldAlert color={color} size={size} />;
@@ -54,11 +51,6 @@ function MainTabNavigator() {
         options={{ title: 'MARIS Coastal', tabBarLabel: 'Explore', tabBarIcon: renderExploreIcon }}
       />
       <Tab.Screen
-        name="Safety"
-        component={SafetyCheckScreen}
-        options={{ title: 'Coastal Safety', tabBarLabel: 'Safety Check', tabBarIcon: renderSafetyIcon }}
-      />
-      <Tab.Screen
         name="PFZ"
         component={PFZScreen}
         options={{ title: 'Fishing Zones', tabBarLabel: 'PFZ Map', tabBarIcon: renderPFZIcon }}
@@ -66,7 +58,7 @@ function MainTabNavigator() {
       <Tab.Screen
         name="AskMaris"
         component={AskMarisScreen}
-        options={{ title: 'MARIS AI Safety', tabBarLabel: 'Ask AI', tabBarIcon: renderAskIcon }}
+        options={{ title: 'MARIS AI Assistant', tabBarLabel: 'Ask AI', tabBarIcon: renderAskIcon }}
       />
       <Tab.Screen
         name="Report"

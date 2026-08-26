@@ -7,20 +7,19 @@ import {
   lookupByCoordinates,
   getLiveLocations
 } from './intelligence.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware';
 
 const intelligenceRouter = Router();
 
-// Secure all intelligence endpoints
-intelligenceRouter.use(authMiddleware as any);
+// Public endpoints with optional authentication context
+intelligenceRouter.get('/live-locations', optionalAuthMiddleware as any, getLiveLocations as any);
+intelligenceRouter.get('/locations/live', optionalAuthMiddleware as any, getLiveLocations as any);
+intelligenceRouter.get('/lookup', optionalAuthMiddleware as any, lookupByCoordinates as any);
 
-intelligenceRouter.get('/live-locations', getLiveLocations as any);
-intelligenceRouter.get('/locations/live', getLiveLocations as any);
-intelligenceRouter.get('/lookup', lookupByCoordinates as any);
-intelligenceRouter.post('/analyze/:incidentId', analyzeIncident as any);
-intelligenceRouter.get('/:incidentId', getAnalysis as any);
-intelligenceRouter.get('/:incidentId/matches', getMatches as any);
-intelligenceRouter.get('/:incidentId/explanation', getExplanation as any);
+// Incident-specific analysis endpoints require full authentication
+intelligenceRouter.post('/analyze/:incidentId', authMiddleware as any, analyzeIncident as any);
+intelligenceRouter.get('/:incidentId', authMiddleware as any, getAnalysis as any);
+intelligenceRouter.get('/:incidentId/matches', authMiddleware as any, getMatches as any);
+intelligenceRouter.get('/:incidentId/explanation', authMiddleware as any, getExplanation as any);
 
 export { intelligenceRouter };
-

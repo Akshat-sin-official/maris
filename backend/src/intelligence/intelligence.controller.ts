@@ -228,11 +228,6 @@ export async function lookupByCoordinates(
   next: NextFunction
 ): Promise<void> {
   try {
-    const userContext = req.user;
-    if (!userContext) {
-      throw new ForbiddenError('Access denied: authentication required');
-    }
-
     const parsed = coordinateLookupSchema.safeParse(req.query);
     if (!parsed.success) {
       res.status(400).json({
@@ -256,16 +251,11 @@ export async function lookupByCoordinates(
  * Retrieves live telemetry locations via BigData API
  */
 export async function getLiveLocations(
-  req: AuthenticatedRequest,
+  _req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
-    const userContext = req.user;
-    if (!userContext) {
-      throw new ForbiddenError('Access denied: authentication required');
-    }
-
     const liveLocationsData = await IntelligenceService.getLiveLocations();
     res.status(200).json(liveLocationsData);
   } catch (error) {

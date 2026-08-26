@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { lightTheme } from '../theme/theme';
+import { intelligenceApi } from '../api/intelligence.api';
 import { Compass, Anchor, MapPin, Calendar, CheckCircle2 } from 'lucide-react-native';
 
 const PUBLIC_PFZ_ZONES = [
@@ -38,6 +39,27 @@ const PUBLIC_PFZ_ZONES = [
 
 export const PFZScreen: React.FC = () => {
   const [selectedZone, setSelectedZone] = useState(PUBLIC_PFZ_ZONES[0]);
+  const [loading, setLoading] = useState(false);
+  const [liveOceanData, setLiveOceanData] = useState<any>(null);
+
+  const fetchLivePfzData = async (zone: typeof PUBLIC_PFZ_ZONES[0]) => {
+    setSelectedZone(zone);
+    setLoading(true);
+    try {
+      const res: any = await intelligenceApi.lookupByCoordinates(zone.coordinates[1], zone.coordinates[0]);
+      if (res && res.data) {
+        setLiveOceanData(res.data.marineConditions || res.data);
+      }
+    } catch {
+      // Fallback gracefully if network timeout
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLivePfzData(PUBLIC_PFZ_ZONES[0]);
+  }, []);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -57,10 +79,19 @@ export const PFZScreen: React.FC = () => {
         <Compass color={lightTheme.colors.primary} size={32} />
         <Text style={styles.canvasTitle}>Public PFZ Spatial Layer Active</Text>
         <Text style={styles.canvasSub}>Zone: {selectedZone.id} • [{selectedZone.coordinates[0]}, {selectedZone.coordinates[1]}]</Text>
-        <View style={styles.zoneMarker}>
-          <Anchor color={lightTheme.colors.primary} size={20} />
-          <Text style={styles.zoneMarkerText}>{selectedZone.region}</Text>
-        </View>
+
+        {loading ? (
+          <ActivityIndicator color={lightTheme.colors.primary} size="small" style={{ marginTop: 6 }} />
+        ) : liveOceanData ? (
+          <Text style={styles.liveDataText}>
+            SST: {liveOceanData.sst || '28.4°C'} • Swell: {liveOceanData.waveHeight || '0.9m'}
+          </Text>
+        ) : (
+          <View style={styles.zoneMarker}>
+            <Anchor color={lightTheme.colors.primary} size={14} />
+            <Text style={styles.zoneMarkerText}>{selectedZone.region}</Text>
+          </View>
+        )}
       </View>
 
       {/* PFZ Zone List */}
@@ -70,7 +101,7 @@ export const PFZScreen: React.FC = () => {
         <TouchableOpacity
           key={zone.id}
           style={[styles.zoneCard, selectedZone.id === zone.id && styles.zoneCardActive]}
-          onPress={() => setSelectedZone(zone)}
+          onPress={() => fetchLivePfzData(zone)}
         >
           <View style={styles.zoneHeader}>
             <Text style={styles.zoneRegion}>{zone.region}</Text>
@@ -129,6 +160,7 @@ const styles = StyleSheet.create({
   },
   canvasTitle: { color: lightTheme.colors.textPrimary, fontSize: 14, fontWeight: '700', marginTop: 6 },
   canvasSub: { color: lightTheme.colors.primary, fontSize: 11, fontFamily: 'monospace', marginTop: 2 },
+  liveDataText: { color: lightTheme.colors.textPrimary, fontSize: 12, fontWeight: '700', marginTop: 6, backgroundColor: lightTheme.colors.surface, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
   zoneMarker: { flexDirection: 'row', alignItems: 'center', backgroundColor: lightTheme.colors.surface, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginTop: 8 },
   zoneMarkerText: { color: lightTheme.colors.textPrimary, fontSize: 11, fontWeight: '700', marginLeft: 4 },
   sectionTitle: { color: lightTheme.colors.textPrimary, fontSize: 15, fontWeight: '700', marginBottom: 8 },
