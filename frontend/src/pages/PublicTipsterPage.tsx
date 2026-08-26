@@ -1,10 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Search,
   Send,
   CheckCircle2,
   RefreshCw,
   ShieldCheck,
+  Camera,
+  X,
+  UploadCloud,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { api } from '../portal/services/api';
 
@@ -17,6 +21,7 @@ export const PublicTipsterPage: React.FC = () => {
   const [description, setDescription] = useState('');
   const [lat, setLat] = useState('9.28');
   const [lng, setLng] = useState('79.31');
+  const [selectedImages, setSelectedImages] = useState<{ name: string; url: string }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<any>(null);
 
@@ -25,6 +30,8 @@ export const PublicTipsterPage: React.FC = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [trackedRecord, setTrackedRecord] = useState<any>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getDeviceMetadata = () => {
     return {
@@ -39,6 +46,33 @@ export const PublicTipsterPage: React.FC = () => {
       language: navigator.language || 'en-US',
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
     };
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file) => {
+      if (!file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setSelectedImages((prev) => [
+            ...prev,
+            { name: file.name, url: event.target!.result as string },
+          ]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setSelectedImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmitTip = async (e: React.FormEvent) => {
@@ -57,7 +91,11 @@ export const PublicTipsterPage: React.FC = () => {
           type: 'Point',
           coordinates: [parseFloat(lng) || 79.31, parseFloat(lat) || 9.28],
         },
-        evidence: [],
+        evidence: selectedImages.map((img) => ({
+          fileUrl: img.url,
+          fileType: 'IMAGE',
+          fileName: img.name,
+        })),
         clientMetadata: getDeviceMetadata(),
       };
 
@@ -65,6 +103,7 @@ export const PublicTipsterPage: React.FC = () => {
       setSubmitResult(res.data || res);
       setTitle('');
       setDescription('');
+      setSelectedImages([]);
     } catch (err: any) {
       console.error('Tip submission failed:', err);
     } finally {
@@ -299,6 +338,129 @@ export const PublicTipsterPage: React.FC = () => {
                       outline: 'none',
                     }}
                   />
+                </div>
+
+                {/* OPTIONAL IMAGE / EVIDENCE UPLOAD PLACEHOLDER ZONE */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151' }}>
+                      UPLOAD PHOTO EVIDENCE <span style={{ color: '#6b7280', fontWeight: 500 }}>(Optional)</span>
+                    </label>
+                    <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>JPG, PNG • Max 10MB per file</span>
+                  </div>
+
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImageUpload}
+                    accept="image/*"
+                    multiple
+                    style={{ display: 'none' }}
+                  />
+
+                  {/* Dropzone / Upload Placeholder Button */}
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      border: '2px dashed rgba(0, 0, 0, 0.15)',
+                      borderRadius: '12px',
+                      padding: '24px 16px',
+                      backgroundColor: '#f9fafb',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '50%',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid rgba(0, 0, 0, 0.1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#2563eb',
+                      }}
+                    >
+                      <UploadCloud size={20} />
+                    </div>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#111827' }}>
+                      Click to upload photo evidence or vessel imagery
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#6b7280' }}>
+                      Attach photos of vessel markings, gear, pollution, or coastal activity
+                    </div>
+                  </div>
+
+                  {/* Selected Images Preview Chips */}
+                  {selectedImages.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '12px' }}>
+                      {selectedImages.map((img, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            position: 'relative',
+                            width: '90px',
+                            height: '90px',
+                            borderRadius: '10px',
+                            overflow: 'hidden',
+                            border: '1px solid rgba(0,0,0,0.15)',
+                            backgroundColor: '#000000',
+                          }}
+                        >
+                          <img
+                            src={img.url}
+                            alt={img.name}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.9 }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeImage(idx)}
+                            style={{
+                              position: 'absolute',
+                              top: '4px',
+                              right: '4px',
+                              width: '22px',
+                              height: '22px',
+                              borderRadius: '50%',
+                              backgroundColor: 'rgba(0,0,0,0.75)',
+                              color: '#ffffff',
+                              border: 'none',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <X size={12} />
+                          </button>
+                          <div
+                            style={{
+                              position: 'absolute',
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              padding: '2px 4px',
+                              backgroundColor: 'rgba(0,0,0,0.6)',
+                              color: '#ffffff',
+                              fontSize: '0.62rem',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            {img.name}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>

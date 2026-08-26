@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Alert as RNAlert } from 'react-native';
 import { lightTheme } from '../theme/theme';
 import { tipsApi } from '../api/tips.api';
-import { ShieldAlert, Send, Search, CheckCircle2, FileText, Clock } from 'lucide-react-native';
+import { ShieldAlert, Send, Search, CheckCircle2, FileText, Clock, Camera, Image as ImageIcon, X } from 'lucide-react-native';
 
 const REPORT_CATEGORIES = [
   { id: 'SUSPICIOUS_VESSEL', label: 'Unusual / Suspicious Vessel' },
@@ -19,6 +19,7 @@ export const CitizenReportScreen: React.FC = () => {
   const [description, setDescription] = useState('');
   const [latInput, setLatInput] = useState('15.26');
   const [lngInput, setLngInput] = useState('73.91');
+  const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [receipt, setReceipt] = useState<any>(null);
 
@@ -26,6 +27,16 @@ export const CitizenReportScreen: React.FC = () => {
   const [trackInput, setTrackInput] = useState('');
   const [trackLoading, setTrackLoading] = useState(false);
   const [trackedStatus, setTrackedStatus] = useState<any>(null);
+
+  const handleSimulateImagePick = () => {
+    // Allows user to simulate attaching photo evidence
+    setAttachedImage(`evidence_photo_${Date.now()}.jpg`);
+    RNAlert.alert('Photo Selected', 'Attached 1 photo as evidence for this tip report.');
+  };
+
+  const removeAttachedImage = () => {
+    setAttachedImage(null);
+  };
 
   const handleSubmitTip = async () => {
     if (!title.trim() || !description.trim()) {
@@ -51,6 +62,7 @@ export const CitizenReportScreen: React.FC = () => {
         type: 'Point' as const,
         coordinates: [lng, lat] as [number, number],
       },
+      evidence: attachedImage ? [{ fileName: attachedImage, fileType: 'IMAGE' }] : [],
       clientMetadata: {
         deviceType: 'MOBILE_CITIZEN',
         os: 'Android/iOS',
@@ -70,6 +82,7 @@ export const CitizenReportScreen: React.FC = () => {
         RNAlert.alert('Report Submitted', `Your receipt code is ${res.data.tipsterId}. Keep this ID to track your report status.`);
         setTitle('');
         setDescription('');
+        setAttachedImage(null);
       } else {
         // Local receipt fallback
         const mockReceipt = `TIP-${Math.floor(1000000000 + Math.random() * 9000000000)}`;
@@ -81,6 +94,7 @@ export const CitizenReportScreen: React.FC = () => {
         RNAlert.alert('Report Registered', `Your receipt code is ${mockReceipt}.`);
         setTitle('');
         setDescription('');
+        setAttachedImage(null);
       }
     } catch {
       // Generate standard 10-digit receipt if backend connection fails
@@ -93,6 +107,7 @@ export const CitizenReportScreen: React.FC = () => {
       RNAlert.alert('Report Queued', `Saved with tracking ID ${fallbackId}. Will transmit when online.`);
       setTitle('');
       setDescription('');
+      setAttachedImage(null);
     } finally {
       setLoading(false);
     }
@@ -191,6 +206,25 @@ export const CitizenReportScreen: React.FC = () => {
         value={description}
         onChangeText={setDescription}
       />
+
+      {/* OPTIONAL IMAGE UPLOAD PLACEHOLDER CONTAINER */}
+      <Text style={styles.label}>Attach Photo Evidence (Optional)</Text>
+      {attachedImage ? (
+        <View style={styles.attachedBox}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <ImageIcon color="#0284c7" size={18} style={{ marginRight: 8 }} />
+            <Text style={styles.attachedText}>{attachedImage}</Text>
+          </View>
+          <TouchableOpacity onPress={removeAttachedImage}>
+            <X color="#dc2626" size={18} />
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <TouchableOpacity style={styles.uploadPlaceholder} onPress={handleSimulateImagePick}>
+          <Camera color={lightTheme.colors.primary} size={20} style={{ marginRight: 8 }} />
+          <Text style={styles.uploadPlaceholderText}>Upload Image Evidence (JPG, PNG)</Text>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity style={styles.submitBtn} onPress={handleSubmitTip} disabled={loading}>
         {loading ? (
@@ -297,6 +331,31 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   coordRow: { flexDirection: 'row' },
+  uploadPlaceholder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#0284c740',
+    borderStyle: 'dashed',
+    borderRadius: lightTheme.borderRadius.md,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#0284c708',
+  },
+  uploadPlaceholderText: { color: lightTheme.colors.primary, fontSize: 13, fontWeight: '600' },
+  attachedBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#0284c740',
+    borderRadius: lightTheme.borderRadius.md,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: '#0284c710',
+  },
+  attachedText: { color: lightTheme.colors.textPrimary, fontSize: 13, fontWeight: '600' },
   submitBtn: {
     backgroundColor: lightTheme.colors.primary,
     borderRadius: lightTheme.borderRadius.md,
