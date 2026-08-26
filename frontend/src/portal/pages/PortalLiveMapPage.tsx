@@ -8,19 +8,12 @@ import {
   Bot,
   ExternalLink,
   RefreshCw,
-  MapPin,
-  Thermometer,
-  Wind,
-  Waves,
-  Droplets,
-  Info
+  MapPin
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 
 export const PortalLiveMapPage: React.FC = () => {
   const navigate = useNavigate();
-  const { simulatedMode } = useAuth();
 
   // State for coordinates (defaults to requested World Monitor params)
   const [coords, setCoords] = useState<{ lat: number; lon: number; zoom: number }>({
@@ -35,7 +28,7 @@ export const PortalLiveMapPage: React.FC = () => {
   const [iframeKey, setIframeKey] = useState<number>(0);
 
   const [telemetry, setTelemetry] = useState<any>(null);
-  const [telemetryLoading, setTelemetryLoading] = useState<boolean>(false);
+  const [_telemetryLoading, setTelemetryLoading] = useState<boolean>(false);
 
   // Parse URL Search Params on mount (?lat=...&lon=...&zoom=...)
   useEffect(() => {

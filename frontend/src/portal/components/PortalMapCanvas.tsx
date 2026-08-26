@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { Layers, Radio, ZoomIn, ZoomOut } from 'lucide-react';
+import { Layers, Radio } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
-interface MapLayerState {
+export interface MapLayerState {
   liveLocations: boolean;
   incidents: boolean;
   observations: boolean;
   pfz: boolean;
   geofence: boolean;
+  alerts?: boolean;
+  sst?: boolean;
 }
 
 interface PortalMapCanvasProps {

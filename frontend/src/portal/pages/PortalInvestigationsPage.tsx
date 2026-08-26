@@ -5,21 +5,12 @@ import {
   Search,
   Plus,
   MapPin,
-  Clock,
-  User,
-  Bot,
   CheckCircle2,
   Lock,
-  ArrowRight,
-  Filter,
-  FileText,
-  AlertTriangle,
   RefreshCw,
   X,
   Send,
   UploadCloud,
-  FileCheck,
-  Check,
   Sparkles
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';

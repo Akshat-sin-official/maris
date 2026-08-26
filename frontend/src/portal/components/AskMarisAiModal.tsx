@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, X, Send, AlertTriangle, ShieldCheck, Compass, Loader2, ArrowRight } from 'lucide-react';
+import { Sparkles, X, Send, ShieldCheck, Compass, Loader2, ArrowRight } from 'lucide-react';
 import { api } from '../services/api';
 
 interface AskMarisAiModalProps {
@@ -11,7 +11,7 @@ export const AskMarisAiModal: React.FC<AskMarisAiModalProps> = ({ isOpen, onClos
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [_errorMessage, setErrorMessage] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const samplePrompts = [

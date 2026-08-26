@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Download, Printer, Plus, RefreshCw, Eye, Edit, Send, CheckCircle2, Globe, Sparkles } from 'lucide-react';
+import { FileText, Plus, RefreshCw, Eye, Edit, CheckCircle2 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 

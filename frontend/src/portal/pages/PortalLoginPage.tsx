@@ -27,13 +27,13 @@ export const PortalLoginPage: React.FC = () => {
   const handleRoleChange = (role: UserRole) => {
     setSelectedRole(role);
     setLoginError(null);
-    const emailMap: Record<UserRole, string> = {
+    const emailMap: Record<string, string> = {
       'Control Room Operator': 'operator@maris.gov.in',
       'Researcher': 'researcher@maris.gov.in',
       'Coastal Officer': 'officer@maris.gov.in',
       'Admin': 'admin@maris.gov.in',
     };
-    setEmail(emailMap[role]);
+    setEmail(emailMap[role] || 'user@maris.gov.in');
   };
 
   const handleLogin = async (e: React.FormEvent) => {

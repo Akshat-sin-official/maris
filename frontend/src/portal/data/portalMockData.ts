@@ -43,7 +43,7 @@ export interface FieldObservation {
   locationName: string;
   timestamp: string;
   syncState: 'SYNCED' | 'PENDING' | 'SYNCING' | 'FAILED';
-  verificationStatus: 'VERIFIED' | 'UNDER_REVIEW' | 'UNVERIFIED';
+  verificationStatus: 'VERIFIED' | 'UNDER_REVIEW' | 'UNVERIFIED' | 'REJECTED';
   photoUrl?: string;
   confidenceScore: number;
 }

@@ -5,19 +5,14 @@ import {
   RefreshCw,
   Plus,
   Search,
-  CheckCircle2,
-  XCircle,
   ShieldAlert,
   MapPin,
   Clock,
   User,
-  Activity,
-  FileText,
   Filter,
   Check,
   X,
   Eye,
-  UploadCloud,
   FileCheck
 } from 'lucide-react';
 import { type FieldObservation } from '../data/portalMockData';

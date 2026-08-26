@@ -13,7 +13,6 @@ import {
   FileText,
   Clock,
   CheckCircle2,
-  Check,
 } from 'lucide-react';
 import { PortalMapCanvas } from '../components/PortalMapCanvas';
 import { useAuth } from '../context/AuthContext';

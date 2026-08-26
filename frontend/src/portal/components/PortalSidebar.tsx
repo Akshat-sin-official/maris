@@ -135,7 +135,7 @@ export const PortalSidebar: React.FC<PortalSidebarProps> = ({
     const currentRole = user?.role || 'Control Room Operator';
     
     // Admin has access to all modules
-    if (currentRole === 'Admin' || currentRole === 'ADMIN' || currentRole === 'ORG_ADMIN') return true;
+    if (currentRole === 'Admin' || (currentRole as string) === 'ADMIN' || (currentRole as string) === 'ORG_ADMIN') return true;
 
     const aliases = roleAliasMap[currentRole] || [currentRole];
     return item.allowedRoles.some((allowed) => {
