@@ -191,6 +191,7 @@ describe('CopernicusMarineProvider - Copernicus Marine (credentials-gated)', () 
     globalThis.fetch = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,
+      text: async () => JSON.stringify(CMEMS_MOCK_RESPONSE),
       json: async () => CMEMS_MOCK_RESPONSE,
     } as any);
   });
@@ -226,11 +227,12 @@ describe('CopernicusMarineProvider - Copernicus Marine (credentials-gated)', () 
       ok: false,
       status: 401,
       statusText: 'Unauthorized',
+      text: async () => 'Unauthorized',
     } as any);
 
     const provider = new CopernicusMarineProvider('bad_user', 'bad_pass');
     await expect(provider.fetchOceanConditions(12.52, 80.25)).rejects.toThrow(
-      'Copernicus Marine API error: 401 Unauthorized'
+      'Copernicus Marine API returned HTML/Non-JSON response [HTTP 401]'
     );
   });
 });

@@ -56,6 +56,7 @@ export class CopernicusMarineProvider implements OceanProvider {
         waveHeight: 1.8,
         wavePeriod: 6.2,
         waveDirection: 110,
+        coordinates: [lon, lat],
       };
     } catch (err: any) {
       clearTimeout(timeoutId);
