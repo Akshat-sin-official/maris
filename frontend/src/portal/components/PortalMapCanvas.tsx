@@ -21,16 +21,18 @@ interface PortalMapCanvasProps {
   onSelectFeature?: (feature: any) => void;
 }
 
+const CARTO_API_KEY = import.meta.env.VITE_CARTO_API_KEY || '';
+
 const CARTO_DARK_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
     'carto-dark-tiles': {
       type: 'raster',
       tiles: [
-        'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-        'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-        'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-        'https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+        `https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?key=${CARTO_API_KEY}`,
+        `https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?key=${CARTO_API_KEY}`,
+        `https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?key=${CARTO_API_KEY}`,
+        `https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?key=${CARTO_API_KEY}`,
       ],
       tileSize: 256,
       attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
