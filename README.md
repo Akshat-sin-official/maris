@@ -250,3 +250,5 @@ npx tsc --noEmit
 
 * **Akshat Singh** ([@Akshat-sin-official](https://github.com/Akshat-sin-official))
 * **Jyotsna Singh** ([@jyotsnasinghcs28-rgb](https://github.com/jyotsnasinghcs28-rgb))
+* **Ritesh Mishra** ([@dev-ritesh-09](https://github.com/dev-ritesh-09))
+* **Anubhav Sachan**
