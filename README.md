@@ -22,6 +22,7 @@ MARIS is an agentic marine intelligence platform combining multi-agent decision 
 - [🛠️ Environment Variables Configuration](#%EF%B8%8F-environment-variables-configuration)
 - [🚀 Quick Start & Development Setup](#-quick-start--development-setup)
 - [🧪 Verification & Type Checking](#-verification--type-checking)
+- [👥 Contributors](#-contributors)
 
 ---
 
@@ -242,3 +243,10 @@ npx tsc --noEmit
 cd mobile
 npx tsc --noEmit
 ```
+
+---
+
+## 👥 Contributors
+
+* **Akshat Singh** ([@Akshat-sin-official](https://github.com/Akshat-sin-official))
+* **Jyotsna Singh** ([@jyotsnasinghcs28-rgb](https://github.com/jyotsnasinghcs28-rgb))
